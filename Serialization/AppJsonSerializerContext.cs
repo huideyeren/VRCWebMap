@@ -1,8 +1,8 @@
 using System.Text.Json.Serialization;
-using VRCWebMapBackend.Contracts.Spots;
-using VRCWebMapBackend.Models;
+using VrcWebMap.Backend.Contracts.Spots;
+using VrcWebMap.Backend.Models;
 
-namespace VRCWebMapBackend.Serialization;
+namespace VrcWebMap.Backend.Serialization;
 
 [JsonSerializable(typeof(Spot))]
 [JsonSerializable(typeof(Spot[]))]

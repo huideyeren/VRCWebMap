@@ -1,4 +1,4 @@
-namespace VRCWebMapBackend.Models;
+namespace VrcWebMap.Backend.Models;
 
 /// <summary>
 /// スポットに紐づく自由コメントです。

@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
-using VRCWebMapBackend.Models;
+using VrcWebMap.Backend.Models;
 
-namespace VRCWebMapBackend.UseCases.Spots;
+namespace VrcWebMap.Backend.UseCases.Spots;
 
 /// <summary>
 /// スポット永続化の境界です。

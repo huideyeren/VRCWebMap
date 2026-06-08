@@ -1,4 +1,4 @@
-namespace VRCWebMapBackend.Contracts.Spots;
+namespace VrcWebMap.Backend.Contracts.Spots;
 
 /// <summary>
 /// スポットを削除するユースケースの契約です。

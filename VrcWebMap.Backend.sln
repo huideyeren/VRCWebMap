@@ -1,8 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VRCWebMapBackend", "VRCWebMapBackend.csproj", "{2112E092-4833-44DA-A816-C1107F5C8363}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VrcWebMap.Backend", "VrcWebMap.Backend.csproj", "{2112E092-4833-44DA-A816-C1107F5C8363}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VRCWebMapBackend.Tests", "VRCWebMapBackend.Tests\VRCWebMapBackend.Tests.csproj", "{5B55AB98-FBE8-4C2A-B329-6E80270FB76E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VrcWebMap.Backend.Tests", "VrcWebMap.Backend.Tests\VrcWebMap.Backend.Tests.csproj", "{5B55AB98-FBE8-4C2A-B329-6E80270FB76E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

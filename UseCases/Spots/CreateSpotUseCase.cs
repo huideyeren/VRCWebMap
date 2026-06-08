@@ -1,8 +1,8 @@
 using Kawa.Abstractions;
-using VRCWebMapBackend.Contracts.Spots;
-using VRCWebMapBackend.Models;
+using VrcWebMap.Backend.Contracts.Spots;
+using VrcWebMap.Backend.Models;
 
-namespace VRCWebMapBackend.UseCases.Spots;
+namespace VrcWebMap.Backend.UseCases.Spots;
 
 [KawaUseCase(
     "spots.create",

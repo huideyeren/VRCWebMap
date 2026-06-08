@@ -1,6 +1,6 @@
 using Kawa.Abstractions;
 
-namespace VRCWebMapBackend.UseCases.Spots;
+namespace VrcWebMap.Backend.UseCases.Spots;
 
 /// <summary>
 /// スポット入力値の検証ルールです。

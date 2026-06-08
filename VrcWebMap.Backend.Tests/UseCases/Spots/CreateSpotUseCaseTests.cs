@@ -1,9 +1,9 @@
 using Kawa.Abstractions;
-using VRCWebMapBackend.Contracts.Spots;
-using VRCWebMapBackend.Tests.TestDoubles;
-using VRCWebMapBackend.UseCases.Spots;
+using VrcWebMap.Backend.Contracts.Spots;
+using VrcWebMap.Backend.Tests.TestDoubles;
+using VrcWebMap.Backend.UseCases.Spots;
 
-namespace VRCWebMapBackend.Tests.UseCases.Spots;
+namespace VrcWebMap.Backend.Tests.UseCases.Spots;
 
 public sealed class CreateSpotUseCaseTests
 {

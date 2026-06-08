@@ -1,4 +1,4 @@
-namespace VRCWebMapBackend.Models;
+namespace VrcWebMap.Backend.Models;
 
 /// <summary>
 /// エリアコードと表示名、分類の定義です。

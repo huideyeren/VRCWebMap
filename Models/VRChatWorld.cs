@@ -1,4 +1,4 @@
-namespace VRCWebMapBackend.Models;
+namespace VrcWebMap.Backend.Models;
 
 /// <summary>
 /// スポットに紐づく VRChat ワールド情報です。

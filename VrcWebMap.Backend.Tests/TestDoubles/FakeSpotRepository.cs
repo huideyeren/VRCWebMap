@@ -1,8 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
-using VRCWebMapBackend.Models;
-using VRCWebMapBackend.UseCases.Spots;
+using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Spots;
 
-namespace VRCWebMapBackend.Tests.TestDoubles;
+namespace VrcWebMap.Backend.Tests.TestDoubles;
 
 internal sealed class FakeSpotRepository : ISpotRepository
 {

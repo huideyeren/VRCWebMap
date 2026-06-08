@@ -1,7 +1,7 @@
 using Kawa.Web;
-using VRCWebMapBackend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Spots;
 
-namespace VRCWebMapBackend.Endpoints.Web;
+namespace VrcWebMap.Backend.Endpoints.Web;
 
 /// <summary>
 /// スポット管理ユースケースを Web エンドポイントとして公開します。

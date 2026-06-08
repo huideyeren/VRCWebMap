@@ -1,6 +1,6 @@
-using VRCWebMapBackend.Models;
+using VrcWebMap.Backend.Models;
 
-namespace VRCWebMapBackend.Contracts.Spots;
+namespace VrcWebMap.Backend.Contracts.Spots;
 
 /// <summary>
 /// スポットを新規作成するユースケースの契約です。

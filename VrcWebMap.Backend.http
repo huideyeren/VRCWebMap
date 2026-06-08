@@ -1,13 +1,13 @@
-@VRCWebMapBackend_HostAddress = http://localhost:5021
+@VrcWebMap_Backend_HostAddress = http://localhost:5021
 
-POST {{VRCWebMapBackend_HostAddress}}/spots/list
+POST {{VrcWebMap_Backend_HostAddress}}/spots/list
 Content-Type: application/json
 
 {}
 
 ###
 
-POST {{VRCWebMapBackend_HostAddress}}/spots/create
+POST {{VrcWebMap_Backend_HostAddress}}/spots/create
 Content-Type: application/json
 
 {
@@ -19,7 +19,7 @@ Content-Type: application/json
 
 ###
 
-POST {{VRCWebMapBackend_HostAddress}}/spots/get
+POST {{VrcWebMap_Backend_HostAddress}}/spots/get
 Content-Type: application/json
 
 {
@@ -28,7 +28,7 @@ Content-Type: application/json
 
 ###
 
-POST {{VRCWebMapBackend_HostAddress}}/spots/update
+POST {{VrcWebMap_Backend_HostAddress}}/spots/update
 Content-Type: application/json
 
 {
@@ -41,7 +41,7 @@ Content-Type: application/json
 
 ###
 
-POST {{VRCWebMapBackend_HostAddress}}/spots/delete
+POST {{VrcWebMap_Backend_HostAddress}}/spots/delete
 Content-Type: application/json
 
 {

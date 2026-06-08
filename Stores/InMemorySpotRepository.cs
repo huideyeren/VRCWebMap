@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using VRCWebMapBackend.Models;
-using VRCWebMapBackend.UseCases.Spots;
+using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Spots;
 
-namespace VRCWebMapBackend.Stores;
+namespace VrcWebMap.Backend.Stores;
 
 /// <summary>
 /// 試作用のインメモリスポットリポジトリです。

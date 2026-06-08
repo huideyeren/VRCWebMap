@@ -1,4 +1,4 @@
-namespace VRCWebMapBackend.Models;
+namespace VrcWebMap.Backend.Models;
 
 /// <summary>
 /// スポットとエリア定義を紐づける関連です。

@@ -1,4 +1,4 @@
-namespace VRCWebMapBackend.Models;
+namespace VrcWebMap.Backend.Models;
 
 /// <summary>
 /// 地図上に表示・管理する基本地点です。

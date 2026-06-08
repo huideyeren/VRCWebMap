@@ -1,8 +1,8 @@
 using Kawa.Web;
-using VRCWebMapBackend.Endpoints.Web;
-using VRCWebMapBackend.Serialization;
-using VRCWebMapBackend.Stores;
-using VRCWebMapBackend.UseCases.Spots;
+using VrcWebMap.Backend.Endpoints.Web;
+using VrcWebMap.Backend.Serialization;
+using VrcWebMap.Backend.Stores;
+using VrcWebMap.Backend.UseCases.Spots;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 

@@ -2,6 +2,8 @@
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
+        <AssemblyName>VrcWebMap.Backend</AssemblyName>
+        <RootNamespace>VrcWebMap.Backend</RootNamespace>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <InvariantGlobalization>true</InvariantGlobalization>
@@ -14,10 +16,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Remove="VRCWebMapBackend.Tests/**"/>
-        <Content Remove="VRCWebMapBackend.Tests/**"/>
-        <EmbeddedResource Remove="VRCWebMapBackend.Tests/**"/>
-        <None Remove="VRCWebMapBackend.Tests/**"/>
+        <Compile Remove="VrcWebMap.Backend.Tests/**"/>
+        <Content Remove="VrcWebMap.Backend.Tests/**"/>
+        <EmbeddedResource Remove="VrcWebMap.Backend.Tests/**"/>
+        <None Remove="VrcWebMap.Backend.Tests/**"/>
     </ItemGroup>
 
 </Project>

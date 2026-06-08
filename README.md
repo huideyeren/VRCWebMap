@@ -1,6 +1,6 @@
-# VRCWebMapBackend
+# VrcWebMap.Backend
 
-VRCWebMapBackend is a prototype backend for managing map spots related to
+VrcWebMap.Backend is a prototype backend for managing map spots related to
 VRChat worlds, areas, restaurants, and free-form comments.
 
 The application follows Kawa's contract-first and usecase-first style:
@@ -38,7 +38,7 @@ dotnet build --no-restore \
 Run tests:
 
 ```bash
-dotnet test VRCWebMapBackend.Tests/VRCWebMapBackend.Tests.csproj \
+dotnet test VrcWebMap.Backend.Tests/VrcWebMap.Backend.Tests.csproj \
   --no-restore \
   -p:RestorePackagesPath=/private/tmp/nuget-packages
 ```
