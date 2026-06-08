@@ -1,0 +1,49 @@
+@VRCWebMapBackend_HostAddress = http://localhost:5021
+
+POST {{VRCWebMapBackend_HostAddress}}/spots/list
+Content-Type: application/json
+
+{}
+
+###
+
+POST {{VRCWebMapBackend_HostAddress}}/spots/create
+Content-Type: application/json
+
+{
+  "name": "Kawa 経由の地図",
+  "latitude": 35.681236,
+  "longitude": 139.767125,
+  "description": "Kawa.Web の use case endpoint から作成"
+}
+
+###
+
+POST {{VRCWebMapBackend_HostAddress}}/spots/get
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-0000-0000-000000000000"
+}
+
+###
+
+POST {{VRCWebMapBackend_HostAddress}}/spots/update
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "name": "更新したスポット",
+  "latitude": 35.681236,
+  "longitude": 139.767125,
+  "description": "更新後の説明"
+}
+
+###
+
+POST {{VRCWebMapBackend_HostAddress}}/spots/delete
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-0000-0000-000000000000"
+}

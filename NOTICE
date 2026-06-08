@@ -1,0 +1,26 @@
+VRCWebMapBackend
+Copyright (c) 2026 iosif
+
+This project is licensed under the MIT License. See LICENSE.
+
+Third-party dependencies currently referenced by the project include:
+
+- Kawa.Web, Kawa.Core, Kawa.Abstractions
+  License: MIT
+  Project: https://github.com/huideyeren/Kawa
+
+- Microsoft.AspNetCore.OpenApi, Microsoft.OpenApi, Microsoft.NET.Test.Sdk
+  License: MIT
+  Project: https://github.com/dotnet/aspnetcore, https://github.com/microsoft/OpenAPI.NET, https://github.com/microsoft/vstest
+
+- coverlet.collector
+  License: MIT
+  Project: https://github.com/coverlet-coverage/coverlet
+
+- xUnit.net and xunit.runner.visualstudio
+  License: Apache License 2.0
+  Project: https://github.com/xunit/xunit
+
+This notice is provided for convenience and may not be exhaustive. When
+redistributing binaries, confirm the final dependency graph and preserve
+applicable third-party license notices.

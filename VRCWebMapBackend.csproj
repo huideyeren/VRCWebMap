@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <PublishAot Condition="'$(Configuration)' == 'Release'">true</PublishAot>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Kawa.Web" Version="0.3.0"/>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Remove="VRCWebMapBackend.Tests/**"/>
+        <Content Remove="VRCWebMapBackend.Tests/**"/>
+        <EmbeddedResource Remove="VRCWebMapBackend.Tests/**"/>
+        <None Remove="VRCWebMapBackend.Tests/**"/>
+    </ItemGroup>
+
+</Project>
