@@ -10,8 +10,8 @@ public sealed class ListSpotsUseCaseTests
     [Fact]
     public async Task ExecuteAsync_ReturnsSpotsOrderedByName()
     {
-        var spotB = new Spot(Guid.NewGuid(), "B Spot", 35, 139, "B");
-        var spotA = new Spot(Guid.NewGuid(), "A Spot", 36, 140, "A");
+        var spotB = new Spot(Guid.NewGuid(), "owner-user", "B Spot", 35, 139, AreaCodes.Japan.Tokyo, "B");
+        var spotA = new Spot(Guid.NewGuid(), "owner-user", "A Spot", 36, 140, AreaCodes.Japan.Osaka, "A");
         var repository = new FakeSpotRepository(spotB, spotA);
         var useCase = new ListSpotsUseCase(repository);
 

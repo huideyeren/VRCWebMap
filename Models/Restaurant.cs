@@ -4,7 +4,8 @@ namespace VrcWebMap.Backend.Models;
 /// スポットに紐づく飲食店情報です。
 /// </summary>
 /// <param name="Id">このレコードの主キーです。</param>
-/// <param name="SpotsId">関連するスポットの ID です。</param>
+/// <param name="SpotId">関連するスポットの ID です。</param>
+/// <param name="RegisteredByUserId">この飲食店情報を登録したユーザーの ID です。</param>
 /// <param name="Name">飲食店名です。</param>
 /// <param name="Address">所在地です。</param>
 /// <param name="Url">公式サイト URL です。</param>
@@ -18,7 +19,8 @@ namespace VrcWebMap.Backend.Models;
 /// <param name="ClosedOn">定休日の説明です。</param>
 public sealed record Restaurant(
     Guid Id,
-    Guid SpotsId,
+    Guid SpotId,
+    string RegisteredByUserId,
     string Name,
     string Address,
     Uri? Url,

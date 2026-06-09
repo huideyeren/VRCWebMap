@@ -28,9 +28,11 @@ public sealed class CreateSpotUseCase(ISpotRepository spots)
         CancellationToken cancellationToken = default)
     {
         var validationError = SpotValidation.Validate(
+            request.RegisteredByUserId,
             request.Name,
             request.Latitude,
             request.Longitude,
+            request.AreaCode,
             request.Description);
 
         if (validationError is not null)
@@ -40,9 +42,11 @@ public sealed class CreateSpotUseCase(ISpotRepository spots)
 
         var spot = new Spot(
             Guid.NewGuid(),
+            request.RegisteredByUserId.Trim(),
             request.Name.Trim(),
             request.Latitude,
             request.Longitude,
+            request.AreaCode,
             request.Description.Trim());
 
         spots.Upsert(spot);

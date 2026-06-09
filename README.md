@@ -1,7 +1,12 @@
 # VrcWebMap.Backend
 
-VrcWebMap.Backend is a prototype backend for managing map spots related to
-VRChat worlds, areas, restaurants, and free-form comments.
+VrcWebMap.Backend is a prototype backend for a map application whose frontend
+uses leaflet.js to display spots on a map.
+
+The backend manages map spots that can be enriched with VRChat worlds and their
+metadata, restaurant information, and free-form comments. A single `Spot` is the
+central map point, belongs to one prefecture or regional area, and can have many
+related `VRChatWorld`, `Restaurant`, and `Comment` records.
 
 The application follows Kawa's contract-first and usecase-first style:
 
@@ -56,6 +61,35 @@ Spot management endpoints are exposed through Kawa use cases:
 - `POST /spots/update`
 - `POST /spots/delete`
 
+Spot-related information is registered after creating a `Spot`. These endpoints
+therefore require `spotId` in the request body:
+
+- `POST /vrchat-worlds/create`
+- `POST /vrchat-worlds/update`
+- `POST /vrchat-worlds/delete`
+- `POST /restaurants/create`
+- `POST /restaurants/update`
+- `POST /restaurants/delete`
+- `POST /comments/create`
+- `POST /comments/update`
+- `POST /comments/delete`
+
+Update and delete endpoints require `actorUserId` and `actorIsAdmin`. Only an
+administrator or the user who registered the target data can update or delete it.
+List and detail endpoints are public. Spot detail responses include the spot and
+its related VRChat worlds, restaurants, and comments.
+
+Portal export endpoints are also exposed through Kawa use cases:
+
+- `POST /portal/world-data`
+
+`/portal/world-data` returns VRChat worlds grouped by Japanese regional
+category names in a `WorldData.json`-style shape.
+
+This portal export is intended for Genkai Kogyo's `PortalLibrarySystem (WPPLS)`,
+a VRChat portal system distributed on BOOTH:
+https://booth.pm/ja/items/6659099
+
 Kawa API catalog and OpenAPI endpoints are also mapped by the application.
 Swagger UI and ReDoc are enabled in development.
 
@@ -77,3 +111,118 @@ terms of service and data licensing separately.
 Restaurant data and links from external services such as Gurunavi, Tabelog,
 Retty, X, or Instagram may be subject to their own terms. Treat those rights
 and usage conditions separately from this source-code license.
+
+---
+
+# VrcWebMap.Backend 日本語版
+
+VrcWebMap.Backend は、フロントエンド側で leaflet.js を使って地図を表示する
+アプリケーションのためのプロトタイプバックエンドです。
+
+このバックエンドは、地図上のスポットを管理します。各スポットには、VRChat
+ワールドとその情報、飲食店情報、その他の自由コメントを追記できる形とします。
+1つの `Spot` が地図上の中心地点であり、都道府県または地域情報が1つ紐づきます。
+また、複数の `VRChatWorld`、`Restaurant`、`Comment` を紐づけられます。
+
+このアプリケーションは、Kawa の contract-first / usecase-first スタイルに従います。
+
+- `Contracts/` は Kawa の request / response contract を配置します。
+- `UseCases/` は transport に依存しないアプリケーションフローを配置します。
+- `Endpoints/Web/` は Kawa.Web endpoint として UseCase を公開します。
+- `Models/` は現在のデータ形状を表す単純な C# record を配置します。
+- `Stores/` は現在のインメモリ repository 実装を配置します。
+
+## 状態
+
+このプロジェクトは実験段階です。現在の storage 実装はインメモリであり、
+プロトタイピング用途を想定しています。
+
+## 必要環境
+
+- .NET 10 SDK
+
+## Restore / Build / Test
+
+この Codex workspace では、サンドボックスの書き込み制限を避けるため、
+NuGet package の書き込み先を `/private/tmp` にしています。
+
+```bash
+dotnet restore \
+  --source /private/tmp/nuget-local \
+  --packages /private/tmp/nuget-packages \
+  -p:NuGetAudit=false
+
+dotnet build --no-restore \
+  -p:RestorePackagesPath=/private/tmp/nuget-packages
+```
+
+テストを実行します。
+
+```bash
+dotnet test VrcWebMap.Backend.Tests/VrcWebMap.Backend.Tests.csproj \
+  --no-restore \
+  -p:RestorePackagesPath=/private/tmp/nuget-packages
+```
+
+このサンドボックス外では、通常の `dotnet restore`、`dotnet build`、
+`dotnet test` がローカル NuGet cache に書き込める環境であれば利用できます。
+
+## API
+
+Spot 管理 endpoint は Kawa UseCase として公開されます。
+
+- `POST /spots/list`
+- `POST /spots/get`
+- `POST /spots/create`
+- `POST /spots/update`
+- `POST /spots/delete`
+
+Spot に紐づく情報は、先に `Spot` を作成してから登録します。そのため、以下の
+endpoint は request body に `spotId` を必要とします。
+
+- `POST /vrchat-worlds/create`
+- `POST /vrchat-worlds/update`
+- `POST /vrchat-worlds/delete`
+- `POST /restaurants/create`
+- `POST /restaurants/update`
+- `POST /restaurants/delete`
+- `POST /comments/create`
+- `POST /comments/update`
+- `POST /comments/delete`
+
+更新・削除 endpoint は `actorUserId` と `actorIsAdmin` を必要とします。
+管理者、または対象データを登録したユーザーだけが更新・削除できます。
+一覧と詳細閲覧は誰でも可能です。Spot 詳細レスポンスには、Spot 本体に加えて
+紐づく VRChat ワールド、飲食店、コメントを含めます。
+
+ポータル出力 endpoint も Kawa UseCase として公開されます。
+
+- `POST /portal/world-data`
+
+`/portal/world-data` は、VRChat ワールドを日本語の地域カテゴリ名ごとにまとめ、
+`WorldData.json` に近い形式で返します。
+
+このポータル出力は、幻会興業さんの `PortalLibrarySystem（WPPLS）` 向けです。
+BOOTH の配布ページ:
+https://booth.pm/ja/items/6659099
+
+Kawa API catalog と OpenAPI endpoint もアプリケーションに map されています。
+開発環境では Swagger UI と ReDoc が有効です。
+
+## ライセンス
+
+このプロジェクトは MIT License です。詳細は `LICENSE` を参照してください。
+
+依存関係のライセンスに関する注記は `NOTICE` に記載しています。
+
+## データと商標に関する注意
+
+このリポジトリの MIT License は、このプロジェクトのソースコードに適用されます。
+
+VRChat の名称、識別子、商標、ロゴ、および VRChat または第三者サービスから取得した
+データは、このリポジトリのライセンスでは許諾されません。将来的に外部データを
+import または再公開する場合は、対象サービスの利用規約とデータライセンスを別途確認してください。
+
+ぐるなび、食べログ、Retty、X、Instagram などの外部サービスに由来する飲食店データや
+リンクは、それぞれの規約の対象となる場合があります。これらの権利と利用条件は、
+このソースコードのライセンスとは別に扱ってください。

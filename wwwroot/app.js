@@ -3,13 +3,15 @@ const message = document.querySelector("#message");
 const mapsContainer = document.querySelector("#maps");
 const reloadButton = document.querySelector("#reload-button");
 const resetButton = document.querySelector("#reset-button");
+const localUserId = "local-user";
 
 const fields = {
     id: document.querySelector("#map-id"),
     name: document.querySelector("#name"),
     description: document.querySelector("#description"),
     latitude: document.querySelector("#latitude"),
-    longitude: document.querySelector("#longitude")
+    longitude: document.querySelector("#longitude"),
+    areaCode: document.querySelector("#area-code")
 };
 
 resetForm();
@@ -46,13 +48,17 @@ async function saveMap() {
         name: fields.name.value,
         latitude: Number(fields.latitude.value),
         longitude: Number(fields.longitude.value),
+        areaCode: Number(fields.areaCode.value),
         description: fields.description.value
     };
+    const body = id
+        ? { id, actorUserId: localUserId, actorIsAdmin: false, ...payload }
+        : { registeredByUserId: localUserId, ...payload };
 
     const response = await fetch(id ? "/spots/update" : "/spots/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(id ? { id, ...payload } : payload)
+        body: JSON.stringify(body)
     });
 
     if (!response.ok) {
@@ -69,7 +75,7 @@ async function deleteMap(id) {
     const response = await fetch("/spots/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id })
+        body: JSON.stringify({ id, actorUserId: localUserId, actorIsAdmin: false })
     });
 
     if (!response.ok) {
@@ -97,6 +103,7 @@ function renderMaps(maps) {
                 <p class="meta">ID: ${escapeHtml(map.id)}</p>
             </div>
             <p class="meta">座標: ${map.latitude.toFixed(6)}, ${map.longitude.toFixed(6)}</p>
+            <p class="meta">地域コード: ${map.areaCode}</p>
             <p class="meta">${escapeHtml(map.description)}</p>
             <div class="actions">
                 <button type="button" class="ghost" data-action="edit">編集</button>
@@ -116,6 +123,7 @@ function editMap(map) {
     fields.description.value = map.description;
     fields.latitude.value = map.latitude;
     fields.longitude.value = map.longitude;
+    fields.areaCode.value = map.areaCode;
     message.textContent = "既存の地図を編集中です。";
 }
 
@@ -125,6 +133,7 @@ function resetForm() {
     fields.description.value = "イベント会場と常設ワールドを管理するサンプルスポット";
     fields.latitude.value = "35.681236";
     fields.longitude.value = "139.767125";
+    fields.areaCode.value = "13";
     message.textContent = "";
 }
 

@@ -14,8 +14,15 @@ public static class GetSpot
     public sealed record Request(Guid Id);
 
     /// <summary>
-    /// 取得したスポットを返すレスポンスです。
+    /// 取得したスポットと関連データを返すレスポンスです。
     /// </summary>
     /// <param name="Spot">取得したスポットです。</param>
-    public sealed record Response(Spot Spot);
+    /// <param name="VRChatWorlds">スポットに紐づく VRChat ワールド情報です。</param>
+    /// <param name="Restaurants">スポットに紐づく飲食店情報です。</param>
+    /// <param name="Comments">スポットに紐づくコメントです。</param>
+    public sealed record Response(
+        Spot Spot,
+        VRChatWorld[] VRChatWorlds,
+        Restaurant[] Restaurants,
+        Comment[] Comments);
 }

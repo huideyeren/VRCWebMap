@@ -10,6 +10,7 @@ namespace VrcWebMap.Backend.UseCases.Spots;
     Version = "v1",
     Tags = new[] { "Spot Management" })]
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "スポットが見つかりません。")]
+[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "スポットを削除する権限がありません。")]
 /// <summary>
 /// スポットを削除するユースケースです。
 /// </summary>
@@ -26,11 +27,20 @@ public sealed class DeleteSpotUseCase(ISpotRepository spots)
         DeleteSpot.Request request,
         CancellationToken cancellationToken = default)
     {
-        if (!spots.Delete(request.Id))
+        if (!spots.TryGet(request.Id, out var spot))
         {
             var error = new KawaError(KawaErrorKind.NotFound, "スポットが見つかりません。");
             return Task.FromResult(KawaResult<DeleteSpot.Response>.Failure(error));
         }
+
+        if (!SpotAuthorization.CanMutate(spot.RegisteredByUserId, request.ActorUserId, request.ActorIsAdmin))
+        {
+            var error = new KawaError(KawaErrorKind.Forbidden, "スポットを削除する権限がありません。");
+            return Task.FromResult(KawaResult<DeleteSpot.Response>.Failure(error));
+        }
+
+        spots.DeleteRelatedData(request.Id);
+        spots.Delete(request.Id);
 
         var response = new DeleteSpot.Response(request.Id);
         return Task.FromResult(KawaResult<DeleteSpot.Response>.Success(response));

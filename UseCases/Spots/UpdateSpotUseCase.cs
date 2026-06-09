@@ -28,16 +28,24 @@ public sealed class UpdateSpotUseCase(ISpotRepository spots)
         UpdateSpot.Request request,
         CancellationToken cancellationToken = default)
     {
-        if (!spots.Exists(request.Id))
+        if (!spots.TryGet(request.Id, out var existing))
         {
             var error = new KawaError(KawaErrorKind.NotFound, "スポットが見つかりません。");
             return Task.FromResult(KawaResult<UpdateSpot.Response>.Failure(error));
         }
 
+        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, request.ActorUserId, request.ActorIsAdmin))
+        {
+            var error = new KawaError(KawaErrorKind.Forbidden, "スポットを変更する権限がありません。");
+            return Task.FromResult(KawaResult<UpdateSpot.Response>.Failure(error));
+        }
+
         var validationError = SpotValidation.Validate(
+            existing.RegisteredByUserId,
             request.Name,
             request.Latitude,
             request.Longitude,
+            request.AreaCode,
             request.Description);
 
         if (validationError is not null)
@@ -47,9 +55,11 @@ public sealed class UpdateSpotUseCase(ISpotRepository spots)
 
         var spot = new Spot(
             request.Id,
+            existing.RegisteredByUserId,
             request.Name.Trim(),
             request.Latitude,
             request.Longitude,
+            request.AreaCode,
             request.Description.Trim());
 
         spots.Upsert(spot);

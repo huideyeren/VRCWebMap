@@ -51,6 +51,14 @@ public sealed class AreaDefinitionsTests
 
         Assert.Contains(
             AreaDefinitions.All,
+            area => area is { AreaCode: AreaCodes.Japan.Mie, AreaName: "三重県", Category: AreaCategory.Chubu });
+
+        Assert.Contains(
+            AreaDefinitions.All,
+            area => area is { AreaCode: AreaCodes.Japan.Osaka, AreaName: "大阪府", Category: AreaCategory.Kansai });
+
+        Assert.Contains(
+            AreaDefinitions.All,
             area => area is { AreaCode: AreaCodes.Japan.Okinawa, AreaName: "沖縄県", Category: AreaCategory.KyushuOkinawa });
 
         Assert.Contains(

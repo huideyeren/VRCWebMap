@@ -23,6 +23,8 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.MapSpots();
+app.MapSpotContent();
+app.MapPortal();
 app.MapKawaApiCatalog();
 app.MapKawaOpenApi();
 

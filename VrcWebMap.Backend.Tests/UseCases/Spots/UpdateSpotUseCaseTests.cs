@@ -11,14 +11,17 @@ public sealed class UpdateSpotUseCaseTests
     [Fact]
     public async Task ExecuteAsync_ExistingSpot_UpdatesSpot()
     {
-        var existing = new Spot(Guid.NewGuid(), "古い名前", 35, 139, "古い説明");
+        var existing = new Spot(Guid.NewGuid(), "owner-user", "古い名前", 35, 139, AreaCodes.Japan.Tokyo, "古い説明");
         var repository = new FakeSpotRepository(existing);
         var useCase = new UpdateSpotUseCase(repository);
         var request = new UpdateSpot.Request(
             existing.Id,
+            "owner-user",
+            ActorIsAdmin: false,
             "  新しい名前  ",
             35.681236,
             139.767125,
+            AreaCodes.Japan.Osaka,
             "  新しい説明  ");
 
         var result = await useCase.ExecuteAsync(request);
@@ -26,9 +29,11 @@ public sealed class UpdateSpotUseCaseTests
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
         Assert.Equal(existing.Id, result.Value.Spot.Id);
+        Assert.Equal("owner-user", result.Value.Spot.RegisteredByUserId);
         Assert.Equal("新しい名前", result.Value.Spot.Name);
         Assert.Equal(35.681236, result.Value.Spot.Latitude);
         Assert.Equal(139.767125, result.Value.Spot.Longitude);
+        Assert.Equal(AreaCodes.Japan.Osaka, result.Value.Spot.AreaCode);
         Assert.Equal("新しい説明", result.Value.Spot.Description);
         Assert.Single(repository.SavedSpots);
         Assert.Equal(result.Value.Spot, repository.SavedSpots[0]);
@@ -39,7 +44,7 @@ public sealed class UpdateSpotUseCaseTests
     {
         var repository = new FakeSpotRepository();
         var useCase = new UpdateSpotUseCase(repository);
-        var request = new UpdateSpot.Request(Guid.NewGuid(), "スポット", 35, 139, "説明");
+        var request = new UpdateSpot.Request(Guid.NewGuid(), "owner-user", ActorIsAdmin: false, "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
 
         var result = await useCase.ExecuteAsync(request);
 
@@ -53,10 +58,10 @@ public sealed class UpdateSpotUseCaseTests
     [Fact]
     public async Task ExecuteAsync_InvalidExistingSpot_ReturnsValidationError()
     {
-        var existing = new Spot(Guid.NewGuid(), "スポット", 35, 139, "説明");
+        var existing = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
         var repository = new FakeSpotRepository(existing);
         var useCase = new UpdateSpotUseCase(repository);
-        var request = new UpdateSpot.Request(existing.Id, "", 35, 139, "説明");
+        var request = new UpdateSpot.Request(existing.Id, "owner-user", ActorIsAdmin: false, "", 35, 139, AreaCodes.Japan.Tokyo, "説明");
 
         var result = await useCase.ExecuteAsync(request);
 
@@ -65,5 +70,35 @@ public sealed class UpdateSpotUseCaseTests
         Assert.Equal(KawaErrorKind.Validation, result.Error.Kind);
         Assert.Equal("地図名は必須です。", result.Error.Message);
         Assert.Empty(repository.SavedSpots);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_OtherUser_ReturnsForbidden()
+    {
+        var existing = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
+        var repository = new FakeSpotRepository(existing);
+        var useCase = new UpdateSpotUseCase(repository);
+        var request = new UpdateSpot.Request(existing.Id, "other-user", ActorIsAdmin: false, "更新", 35, 139, AreaCodes.Japan.Tokyo, "説明");
+
+        var result = await useCase.ExecuteAsync(request);
+
+        Assert.True(result.IsFailure);
+        Assert.NotNull(result.Error);
+        Assert.Equal(KawaErrorKind.Forbidden, result.Error.Kind);
+        Assert.Empty(repository.SavedSpots);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_AdminCanUpdateOtherUsersSpot()
+    {
+        var existing = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
+        var repository = new FakeSpotRepository(existing);
+        var useCase = new UpdateSpotUseCase(repository);
+        var request = new UpdateSpot.Request(existing.Id, "admin-user", ActorIsAdmin: true, "更新", 35, 139, AreaCodes.Japan.Tokyo, "説明");
+
+        var result = await useCase.ExecuteAsync(request);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(repository.SavedSpots);
     }
 }

@@ -11,9 +11,11 @@ POST {{VrcWebMap_Backend_HostAddress}}/spots/create
 Content-Type: application/json
 
 {
+  "registeredByUserId": "discord-user-id",
   "name": "Kawa 経由の地図",
   "latitude": 35.681236,
   "longitude": 139.767125,
+  "areaCode": 13,
   "description": "Kawa.Web の use case endpoint から作成"
 }
 
@@ -33,9 +35,12 @@ Content-Type: application/json
 
 {
   "id": "00000000-0000-0000-0000-000000000000",
+  "actorUserId": "discord-user-id",
+  "actorIsAdmin": false,
   "name": "更新したスポット",
   "latitude": 35.681236,
   "longitude": 139.767125,
+  "areaCode": 13,
   "description": "更新後の説明"
 }
 
@@ -45,5 +50,90 @@ POST {{VrcWebMap_Backend_HostAddress}}/spots/delete
 Content-Type: application/json
 
 {
-  "id": "00000000-0000-0000-0000-000000000000"
+  "id": "00000000-0000-0000-0000-000000000000",
+  "actorUserId": "discord-user-id",
+  "actorIsAdmin": false
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/portal/world-data
+Content-Type: application/json
+
+{
+  "showPrivateWorld": true
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/vrchat-worlds/create
+Content-Type: application/json
+
+{
+  "spotId": "00000000-0000-0000-0000-000000000000",
+  "registeredByUserId": "discord-user-id",
+  "vrChatWorldId": "wrld_00000000-0000-0000-0000-000000000000",
+  "name": "サンプルワールド",
+  "recommendedCapacity": 16,
+  "capacity": 32,
+  "description": "VRChat ワールド説明",
+  "pc": true,
+  "android": true,
+  "ios": false,
+  "isPrivate": false
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/restaurants/create
+Content-Type: application/json
+
+{
+  "spotId": "00000000-0000-0000-0000-000000000000",
+  "registeredByUserId": "discord-user-id",
+  "name": "サンプル飲食店",
+  "address": "東京都千代田区",
+  "url": null,
+  "gurunaviUrl": null,
+  "tabelogUrl": null,
+  "rettyUrl": null,
+  "xUrl": null,
+  "instagramUrl": null,
+  "openTime": "11:00:00",
+  "closeTime": "22:00:00",
+  "closedOn": "不定休"
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/comments/create
+Content-Type: application/json
+
+{
+  "spotId": "00000000-0000-0000-0000-000000000000",
+  "registeredByUserId": "discord-user-id",
+  "comments": "Markdown を想定したコメント"
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/comments/update
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "actorUserId": "discord-user-id",
+  "actorIsAdmin": false,
+  "comments": "更新後のコメント"
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/comments/delete
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "actorUserId": "discord-user-id",
+  "actorIsAdmin": false
 }

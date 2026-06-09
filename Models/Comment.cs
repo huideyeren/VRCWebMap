@@ -4,9 +4,11 @@ namespace VrcWebMap.Backend.Models;
 /// スポットに紐づく自由コメントです。
 /// </summary>
 /// <param name="Id">このレコードの主キーです。</param>
-/// <param name="SpotsId">関連するスポットの ID です。</param>
+/// <param name="SpotId">関連するスポットの ID です。</param>
+/// <param name="RegisteredByUserId">このコメントを登録したユーザーの ID です。</param>
 /// <param name="Comments">Markdown を想定したコメント本文です。</param>
 public sealed record Comment(
     Guid Id,
-    Guid SpotsId,
+    Guid SpotId,
+    string RegisteredByUserId,
     string Comments);
