@@ -16,8 +16,21 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<Comment> Comments => Set<Comment>();
 
+    public DbSet<DiscordUser> DiscordUsers => Set<DiscordUser>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<DiscordUser>(entity =>
+        {
+            entity.HasKey(user => user.DiscordUserId);
+            entity.Property(user => user.DiscordUserId).HasMaxLength(128).IsRequired();
+            entity.Property(user => user.Username).HasMaxLength(100).IsRequired();
+            entity.Property(user => user.GlobalName).HasMaxLength(100);
+            entity.Property(user => user.AvatarHash).HasMaxLength(128);
+            entity.Property(user => user.RequiredGuildId).HasMaxLength(128).IsRequired();
+            entity.HasIndex(user => user.RequiredGuildId);
+        });
+
         modelBuilder.Entity<Spot>(entity =>
         {
             entity.HasKey(spot => spot.Id);

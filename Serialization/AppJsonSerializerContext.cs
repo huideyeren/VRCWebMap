@@ -3,6 +3,7 @@ using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.Contracts.Portal;
 using VrcWebMap.Backend.Contracts.Restaurants;
 using VrcWebMap.Backend.Contracts.Spots;
+using VrcWebMap.Backend.Contracts.Users;
 using VrcWebMap.Backend.Contracts.VRChatWorlds;
 using VrcWebMap.Backend.Models;
 
@@ -18,6 +19,8 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(Restaurant[]))]
 [JsonSerializable(typeof(Comment))]
 [JsonSerializable(typeof(Comment[]))]
+[JsonSerializable(typeof(DiscordUser))]
+[JsonSerializable(typeof(DiscordUser[]))]
 [JsonSerializable(typeof(ListSpots.Request), TypeInfoPropertyName = "ListSpotsRequest")]
 [JsonSerializable(typeof(ListSpots.Response), TypeInfoPropertyName = "ListSpotsResponse")]
 [JsonSerializable(typeof(GetSpot.Request), TypeInfoPropertyName = "GetSpotRequest")]
@@ -55,6 +58,10 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(UpdateComment.Response), TypeInfoPropertyName = "UpdateCommentResponse")]
 [JsonSerializable(typeof(DeleteComment.Request), TypeInfoPropertyName = "DeleteCommentRequest")]
 [JsonSerializable(typeof(DeleteComment.Response), TypeInfoPropertyName = "DeleteCommentResponse")]
+[JsonSerializable(typeof(RegisterDiscordUser.Request), TypeInfoPropertyName = "RegisterDiscordUserRequest")]
+[JsonSerializable(typeof(RegisterDiscordUser.Response), TypeInfoPropertyName = "RegisterDiscordUserResponse")]
+[JsonSerializable(typeof(AuthSession.CurrentUserResponse), TypeInfoPropertyName = "AuthSessionCurrentUserResponse")]
+[JsonSerializable(typeof(AuthSession.LogoutResponse), TypeInfoPropertyName = "AuthSessionLogoutResponse")]
 internal partial class AppJsonSerializerContext : JsonSerializerContext
 {
 }

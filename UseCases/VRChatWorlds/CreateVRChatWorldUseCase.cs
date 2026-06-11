@@ -26,6 +26,12 @@ public sealed class CreateVRChatWorldUseCase(ISpotRepository spots)
         CreateVRChatWorld.Request request,
         CancellationToken cancellationToken = default)
     {
+        if (request.SpotId == Guid.Empty)
+        {
+            var error = new KawaError(KawaErrorKind.Validation, "スポット ID は必須です。");
+            return Task.FromResult(KawaResult<CreateVRChatWorld.Response>.Failure(error));
+        }
+
         if (!spots.Exists(request.SpotId))
         {
             var error = new KawaError(KawaErrorKind.NotFound, "スポットが見つかりません。");

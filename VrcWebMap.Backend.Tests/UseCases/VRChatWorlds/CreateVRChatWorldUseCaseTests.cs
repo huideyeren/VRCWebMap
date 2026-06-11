@@ -38,6 +38,31 @@ public sealed class CreateVRChatWorldUseCaseTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_EmptySpotId_ReturnsValidation()
+    {
+        var repository = new FakeSpotRepository();
+        var useCase = new CreateVRChatWorldUseCase(repository);
+        var request = new CreateVRChatWorld.Request(
+            Guid.Empty,
+            "discord-user-id",
+            "wrld_00000000-0000-0000-0000-000000000000",
+            "テストワールド",
+            16,
+            32,
+            "説明",
+            PC: true,
+            Android: false,
+            IOS: false);
+
+        var result = await useCase.ExecuteAsync(request);
+
+        Assert.True(result.IsFailure);
+        Assert.NotNull(result.Error);
+        Assert.Equal(KawaErrorKind.Validation, result.Error.Kind);
+        Assert.Empty(repository.SavedWorlds);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_MissingSpot_ReturnsNotFound()
     {
         var repository = new FakeSpotRepository();

@@ -40,6 +40,34 @@ public sealed class CreateRestaurantUseCaseTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_EmptySpotId_ReturnsValidation()
+    {
+        var repository = new FakeSpotRepository();
+        var useCase = new CreateRestaurantUseCase(repository);
+        var request = new CreateRestaurant.Request(
+            Guid.Empty,
+            "discord-user-id",
+            "サンプル飲食店",
+            "東京都千代田区",
+            Url: null,
+            GurunaviUrl: null,
+            TabelogUrl: null,
+            RettyUrl: null,
+            XUrl: null,
+            InstagramUrl: null,
+            OpenTime: new TimeOnly(11, 0),
+            CloseTime: new TimeOnly(22, 0),
+            ClosedOn: "不定休");
+
+        var result = await useCase.ExecuteAsync(request);
+
+        Assert.True(result.IsFailure);
+        Assert.NotNull(result.Error);
+        Assert.Equal(KawaErrorKind.Validation, result.Error.Kind);
+        Assert.Empty(repository.SavedRestaurants);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_MissingSpot_ReturnsNotFound()
     {
         var repository = new FakeSpotRepository();

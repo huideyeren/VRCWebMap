@@ -30,6 +30,24 @@ public sealed class CreateCommentUseCaseTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_EmptySpotId_ReturnsValidation()
+    {
+        var repository = new FakeSpotRepository();
+        var useCase = new CreateCommentUseCase(repository);
+        var request = new CreateComment.Request(
+            Guid.Empty,
+            "discord-user-id",
+            "コメント本文");
+
+        var result = await useCase.ExecuteAsync(request);
+
+        Assert.True(result.IsFailure);
+        Assert.NotNull(result.Error);
+        Assert.Equal(KawaErrorKind.Validation, result.Error.Kind);
+        Assert.Empty(repository.SavedComments);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_MissingSpot_ReturnsNotFound()
     {
         var repository = new FakeSpotRepository();

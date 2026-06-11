@@ -38,6 +38,11 @@
 - `Spot`、`VRChatWorld`、`Restaurant`、`Comment` の更新・削除は、管理者または対象データを登録したユーザーだけに許可する。
 - 認証基盤が未実装の間、更新・削除 request には `ActorUserId` と `ActorIsAdmin` を明示的に含める。将来 Discord 認証を実装したら、この値は transport adapter 側で認証情報から組み立てる。
 - ユーザー登録とログインは Discord アカウント連携を想定する。
+- アプリケーションを利用できるユーザーは、設定された Discord サーバーに参加している Discord ユーザーに限定する。
+- Discord OAuth では `identify` と `guilds.members.read` scope を使い、transport adapter が Discord API で対象サーバー参加を確認する。
+- Discord の `マップ管理者` ロールを持つユーザーをアプリケーション管理者として扱う。
+- Discord member API が返すのは role ID なので、transport adapter は Bot token で guild roles を取得し、`Discord:AdminRoleName` に一致する role ID を解決して管理者判定する。
+- Discord API の確認結果だけを `RegisterDiscordUserUseCase` に渡す。クライアントから自己申告された参加状態を信用しない。
 - Discord ユーザーは将来的な投稿者、編集者、権限管理、監査情報の主体になる想定。ただし、認証・認可を実装するまでは UseCase に transport や認証 provider の型を直接漏らさない。
 
 このアプリケーションでは、Spot を中心に VRChat ワールド、現実の飲食店情報、自由コメントを地図上で参照できる状態にすることを目的とする。
@@ -175,6 +180,15 @@ public static class CreateSpot
 - 予測可能な業務失敗を通常フローとして例外で表現する。
 - DI 設定へ業務フローを隠す。
 - 実際に交換可能性がない場所へ不要な抽象化を追加する。
+
+## Sandbox と権限
+
+- 基本的に Codex は sandbox 内で作業する。
+- まず sandbox 内で実行できるコマンドは sandbox 内で実行する。
+- `dotnet test` の test host がローカル socket bind を必要とする場合、Docker / Docker Compose を操作する場合、Git index やリモートへ書き込む場合、外部ネットワークへ接続する場合は、sandbox の制限で失敗することがある。
+- 上記のように socket、network、Docker、Git 書き込み、外部 API 呼び出しなどで権限が必要な局面では、Codex はユーザーに承認を求めてよい。
+- 明らかに sandbox 内で実行できない操作は、sandbox 内での失敗を待たずに最初から承認を求めてよい。
+- sandbox 制限で失敗したコマンドを権限付きで再実行する場合は、何のために権限が必要かを短く説明する。
 
 ## 実行コマンド
 
