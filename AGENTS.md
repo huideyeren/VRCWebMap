@@ -12,6 +12,8 @@
 このバックエンドは、Leaflet.js を使うフロントエンドが地図上に Spot を表示・管理するための API を提供する。
 
 - フロントエンドは Leaflet.js で地図を表示する想定。
+- 将来のフロントエンドは Node.js、React、Leaflet.js で実装する想定。
+- フロントエンドの API client は、このバックエンドが出力する OpenAPI YAML から生成する想定。
 - `Spot` は地図上の基本地点であり、緯度、経度、名称、説明を持つ。
 - 1つの `Spot` には、1つの都道府県コードまたは地域コードが紐づく。
 - 都道府県コードと地域カテゴリの対応は `Models/AreaDefinition.cs` と `Models/AreaDefinitions.cs` に定義する。
@@ -72,6 +74,18 @@ Kawa アプリケーションを理解するときは、原則として次の順
 - `Stores/`: リポジトリや外部永続化の実装。現在はプロトタイプ用のインメモリ実装。
 - `VrcWebMap.Backend.Tests/`: UseCase とモデル中心のテスト。
 
+## データベース方針
+
+- 既定では `InMemorySpotRepository` を使う。
+- `Database:Provider` が `PostgreSQL` で `ConnectionStrings:Postgres` が設定されている場合は、EF Core + Npgsql の `PostgreSqlSpotRepository` を使う。
+- PostgreSQL は Docker Compose で起動する。
+- 現段階では migrations ではなく `EnsureCreated()` で schema を作成する。永続運用へ移る前に migrations へ移行する。
+- Redis は任意。現時点では実装に組み込まない。
+- Redis を使うのは、`/portal/world-data` など読み取りが重い endpoint で PostgreSQL read や JSON 生成が明確なボトルネックになった場合に限定する。
+- Redis を導入する場合は、まず `/portal/world-data` の短時間キャッシュから検討する。`Spot`、`VRChatWorld`、`Restaurant`、`Comment` の更新・削除時に該当キャッシュを確実に無効化する設計を先に用意する。
+- Docker Compose の `cache` profile は、将来キャッシュが必要になった場合に Redis を起動するための保留構成として扱う。
+- DB実装を追加しても、UseCase は `ISpotRepository` にのみ依存させる。UseCase から EF Core や Npgsql を直接参照しない。
+
 ## Contracts の規約
 
 - ファイルは `Contracts/{Area}/{Action}.cs` に置く。
@@ -119,6 +133,8 @@ public static class CreateSpot
 
 - OpenAPI の中心は endpoint 実装ではなく `Contracts/` の `Request` / `Response`。
 - `Endpoints/Web/` は URL、HTTP method、公開名、tag などを宣言する層。
+- OpenAPI YAML は Node.js / React / Leaflet.js フロントエンドの API client 生成元として扱う。
+- 生成 client の都合だけで UseCase contract を歪めない。必要な場合は frontend 側の生成設定や adapter で吸収する。
 - Swagger / ReDoc のためだけに central contract を分岐させない。
 - Swagger UI / ReDoc を production で公開する場合は明示的な opt-in とする。
 

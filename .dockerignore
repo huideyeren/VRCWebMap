@@ -1,0 +1,9 @@
+bin/
+obj/
+VrcWebMap.Backend.Tests/bin/
+VrcWebMap.Backend.Tests/obj/
+.git/
+.idea/
+.vs/
+*.user
+*.suo

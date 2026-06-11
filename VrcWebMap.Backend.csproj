@@ -7,19 +7,20 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <InvariantGlobalization>true</InvariantGlobalization>
-        <PublishAot Condition="'$(Configuration)' == 'Release'">true</PublishAot>
+        <PublishAot Condition="'$(EnableAotPublish)' == 'true'">true</PublishAot>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Kawa.Web" Version="0.3.0"/>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8"/>
+        <PackageReference Include="Kawa.Web" Version="0.3.0" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Remove="VrcWebMap.Backend.Tests/**"/>
-        <Content Remove="VrcWebMap.Backend.Tests/**"/>
-        <EmbeddedResource Remove="VrcWebMap.Backend.Tests/**"/>
-        <None Remove="VrcWebMap.Backend.Tests/**"/>
+        <Compile Remove="VrcWebMap.Backend.Tests/**" />
+        <Content Remove="VrcWebMap.Backend.Tests/**" />
+        <EmbeddedResource Remove="VrcWebMap.Backend.Tests/**" />
+        <None Remove="VrcWebMap.Backend.Tests/**" />
     </ItemGroup>
 
 </Project>
