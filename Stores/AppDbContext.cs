@@ -12,7 +12,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<VRChatWorld> VRChatWorlds => Set<VRChatWorld>();
 
-    public DbSet<Restaurant> Restaurants => Set<Restaurant>();
+    public DbSet<PlaceInfo> PlaceInfos => Set<PlaceInfo>();
+
+    public DbSet<WebLink> WebLinks => Set<WebLink>();
 
     public DbSet<Comment> Comments => Set<Comment>();
 
@@ -56,17 +58,30 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<Restaurant>(entity =>
+        modelBuilder.Entity<PlaceInfo>(entity =>
         {
-            entity.HasKey(restaurant => restaurant.Id);
-            entity.Property(restaurant => restaurant.RegisteredByUserId).HasMaxLength(128).IsRequired();
-            entity.Property(restaurant => restaurant.Name).HasMaxLength(300).IsRequired();
-            entity.Property(restaurant => restaurant.Address).HasMaxLength(500).IsRequired();
-            entity.Property(restaurant => restaurant.ClosedOn).HasMaxLength(200).IsRequired();
-            entity.HasIndex(restaurant => restaurant.SpotId);
+            entity.HasKey(placeInfo => placeInfo.Id);
+            entity.Property(placeInfo => placeInfo.RegisteredByUserId).HasMaxLength(128).IsRequired();
+            entity.Property(placeInfo => placeInfo.Name).HasMaxLength(300).IsRequired();
+            entity.Property(placeInfo => placeInfo.Address).HasMaxLength(500).IsRequired();
+            entity.Property(placeInfo => placeInfo.BusinessInformation).IsRequired();
+            entity.HasIndex(placeInfo => placeInfo.SpotId);
             entity.HasOne<Spot>()
                 .WithMany()
-                .HasForeignKey(restaurant => restaurant.SpotId)
+                .HasForeignKey(placeInfo => placeInfo.SpotId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WebLink>(entity =>
+        {
+            entity.HasKey(webLink => webLink.Id);
+            entity.Property(webLink => webLink.RegisteredByUserId).HasMaxLength(128).IsRequired();
+            entity.Property(webLink => webLink.SiteName).HasMaxLength(300).IsRequired();
+            entity.Property(webLink => webLink.Url).IsRequired();
+            entity.HasIndex(webLink => webLink.SpotId);
+            entity.HasOne<Spot>()
+                .WithMany()
+                .HasForeignKey(webLink => webLink.SpotId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

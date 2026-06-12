@@ -16,6 +16,8 @@
 - フロントエンドの API client は、このバックエンドが出力する OpenAPI YAML から生成する想定。
 - `Spot` は地図上の基本地点であり、緯度、経度、名称、説明を持つ。
 - 1つの `Spot` には、1つの都道府県コードまたは地域コードが紐づく。
+- 地図は位置指定がない場合、デフォルト中心を使う。ブラウザ位置情報が取得できた場合は現在地周辺を中心にするが、現在地はサーバーへ保存しない。
+- URL に `?spotId={id}`、`?spot={id}`、または `#spot={id}` が含まれる場合は、その Spot を読み込んで地図の中心にする。Spot 選択時は直リンク用に `?spotId={id}` を URL に反映する。
 - 都道府県コードと地域カテゴリの対応は `Models/AreaDefinition.cs` と `Models/AreaDefinitions.cs` に定義する。
 - 地域カテゴリは、将来実装する VRChat ワールドポータルシステムのカテゴリとして利用する。
 - 三重県は現状 `AreaCategory.Chubu` として扱う。ただし、将来的に `AreaCategory.Kansai` へ移す可能性がある。
@@ -24,18 +26,25 @@
 - `VRChatWorld` は登録者を追跡するため、登録者 ID を保持する。
 - `VRChatWorld.IsPrivate` は基本 `false` とし、ポータル用 JSON では `false` を `public`、`true` を `private` として扱う。
 - 地図アプリへ `VRChatWorld` を出力するときは、VRChat world ID だけではなく `https://vrchat.com/home/world/{VRChatWorldId}/info` 形式のワールドページ URL を使う。
+- `VRChatWorld` のワールドページ URL は `/web-links/preview` で OGP preview を取得して表示できる。ただし preview は保存データには含めない。
 - ポータル用 JSON は `Categorys[] -> Worlds[]` の形で出力し、`Category` には `AreaCategory` の日本語表示名を使う。
 - ポータル用 JSON の出力 endpoint は `POST /portal/world-data` とする。
 - ポータル用 JSON は幻会興業さんの `PortalLibrarySystem（WPPLS）` 向けに出力する。参照: https://booth.pm/ja/items/6659099
-- 1つの `Spot` には、0件以上の `Restaurant` が紐づく。
+- 1つの `Spot` には、0件以上の `PlaceInfo` が紐づく。
+- `PlaceInfo` の営業情報は、開店時刻・閉店時刻・定休日の個別プロパティではなく、Markdown 対応の `BusinessInformation` 文字列として保持する。昼営業、夜営業、定休日、臨時休業などを自由に併記できる形にする。
+- 1つの `Spot` には、0件以上の `WebLink` が紐づく。
+- `WebLink` はサイト名と URL のみを持つ Web サイト情報として扱う。飲食店だけでなく、場所や VRChat ワールドに関連する任意の外部サイトを扱える形にする。
+- `WebLink` と `VRChatWorld` の OGP preview は `/web-links/preview` で server-side に取得する一時表示情報として扱い、保存データには含めない。SSRF 対策として public な `http` / `https` URL のみを許可し、localhost/private network address は拒否する。
 - 1つの `Spot` には、0件以上の `Comment` が紐づく。
-- `VRChatWorld`、`Restaurant`、`Comment` は `Spot` に従属する情報として扱う。
-- `VRChatWorld`、`Restaurant`、`Comment` の登録は、先に `Spot` を登録してから行う。登録 request には必ず `SpotId` を含める。
-- `VRChatWorld`、`Restaurant`、`Comment` は登録者 ID を保持する。
-- `Spot`、`VRChatWorld`、`Restaurant`、`Comment` の登録は誰でも可能とする。
+- `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` は `Spot` に従属する情報として扱う。
+- `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の登録は、先に `Spot` を登録してから行う。登録 request には必ず `SpotId` を含める。
+- `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` は登録者 ID を保持する。
+- `Spot`、`VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の登録は誰でも可能とする。
 - 一覧と詳細閲覧は誰でも可能とする。
-- `Spot` 詳細閲覧では、Spot 本体に加えて紐づく `VRChatWorld`、`Restaurant`、`Comment` をすべて含める。
-- `Spot`、`VRChatWorld`、`Restaurant`、`Comment` の更新・削除は、管理者または対象データを登録したユーザーだけに許可する。
+- `Spot` 詳細閲覧では、Spot 本体に加えて紐づく `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` をすべて含める。
+- `Spot`、`VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の更新・削除は、管理者または対象データを登録したユーザーだけに許可する。
+- `Spot` に紐づく `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` が1件でも存在する場合、`Spot` の削除は `Conflict` として拒否する。関連データを先に削除してから `Spot` を削除する。
+- 仮フロントエンドでは、`/auth/me` が `isAdmin: true` を返す場合のみ管理者編集パネルを表示し、各データの更新・削除 UI を提供する。
 - 認証基盤が未実装の間、更新・削除 request には `ActorUserId` と `ActorIsAdmin` を明示的に含める。将来 Discord 認証を実装したら、この値は transport adapter 側で認証情報から組み立てる。
 - ユーザー登録とログインは Discord アカウント連携を想定する。
 - アプリケーションを利用できるユーザーは、設定された Discord サーバーに参加している Discord ユーザーに限定する。
@@ -43,9 +52,11 @@
 - Discord の `マップ管理者` ロールを持つユーザーをアプリケーション管理者として扱う。
 - Discord member API が返すのは role ID なので、transport adapter は Bot token で guild roles を取得し、`Discord:AdminRoleName` に一致する role ID を解決して管理者判定する。
 - Discord API の確認結果だけを `RegisterDiscordUserUseCase` に渡す。クライアントから自己申告された参加状態を信用しない。
+- Development 環境では Discord OAuth を使えない場合があるため、`/auth/dev/login/admin` と `/auth/dev/login/user` で開発用サンプルユーザーを登録・ログインできるようにする。
+- 開発用サンプルユーザーは `dev-admin-user`（管理者）と `dev-general-user`（一般ユーザー）とする。これらの endpoint は Development 環境でのみ登録し、production では公開しない。
 - Discord ユーザーは将来的な投稿者、編集者、権限管理、監査情報の主体になる想定。ただし、認証・認可を実装するまでは UseCase に transport や認証 provider の型を直接漏らさない。
 
-このアプリケーションでは、Spot を中心に VRChat ワールド、現実の飲食店情報、自由コメントを地図上で参照できる状態にすることを目的とする。
+このアプリケーションでは、Spot を中心に VRChat ワールド、現実側の場所情報、Web サイト情報、自由コメントを地図上で参照できる状態にすることを目的とする。
 
 ## 基本方針
 
@@ -87,7 +98,7 @@ Kawa アプリケーションを理解するときは、原則として次の順
 - 現段階では migrations ではなく `EnsureCreated()` で schema を作成する。永続運用へ移る前に migrations へ移行する。
 - Redis は任意。現時点では実装に組み込まない。
 - Redis を使うのは、`/portal/world-data` など読み取りが重い endpoint で PostgreSQL read や JSON 生成が明確なボトルネックになった場合に限定する。
-- Redis を導入する場合は、まず `/portal/world-data` の短時間キャッシュから検討する。`Spot`、`VRChatWorld`、`Restaurant`、`Comment` の更新・削除時に該当キャッシュを確実に無効化する設計を先に用意する。
+- Redis を導入する場合は、まず `/portal/world-data` の短時間キャッシュから検討する。`Spot`、`VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の更新・削除時に該当キャッシュを確実に無効化する設計を先に用意する。
 - Docker Compose の `cache` profile は、将来キャッシュが必要になった場合に Redis を起動するための保留構成として扱う。
 - DB実装を追加しても、UseCase は `ISpotRepository` にのみ依存させる。UseCase から EF Core や Npgsql を直接参照しない。
 
@@ -142,6 +153,17 @@ public static class CreateSpot
 - 生成 client の都合だけで UseCase contract を歪めない。必要な場合は frontend 側の生成設定や adapter で吸収する。
 - Swagger / ReDoc のためだけに central contract を分岐させない。
 - Swagger UI / ReDoc を production で公開する場合は明示的な opt-in とする。
+
+## フロントエンド依存管理
+
+- Node.js / React / Leaflet.js の正式な frontend build を追加する場合は PNPM を使う。
+- `npm install` / `npm ci` は使わない。
+- `pnpm-lock.yaml` は必ずコミットし、CI と Docker build では lockfile を固定して install する。
+- PNPM の supply-chain 対策として、`minimumReleaseAge`、`minimumReleaseAgeStrict`、`trustPolicy`、`blockExoticSubdeps`、`onlyBuiltDependencies` / `ignoredBuiltDependencies` の利用を検討する。
+- install script を持つ dependency は supply-chain risk が高いため、必要な package だけを明示的に許可する。
+- `pnpm install` など外部 registry へ接続する操作は network 権限が必要になるため、Codex は最初から承認を求めてよい。
+- Node.js build を導入するまでの仮 frontend は CDN 依存を最小化し、CSP で `self`、利用中 CDN、地図 tile provider だけに接続先を制限する。
+- CDN を使う場合はバージョンを固定し、可能な asset には SRI を付ける。React/Leaflet を正式運用する段階では PNPM build artifact に置き換える。
 
 ## 新機能追加の順序
 

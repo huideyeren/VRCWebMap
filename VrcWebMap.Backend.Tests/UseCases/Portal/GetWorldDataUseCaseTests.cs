@@ -47,7 +47,6 @@ public sealed class GetWorldDataUseCaseTests
                 Assert.Equal("wrld_tokyo", world.ID);
                 Assert.Equal("東京ワールド", world.Name);
                 Assert.Equal("public", world.ReleaseStatus);
-                Assert.Equal(new Uri("https://vrchat.com/home/world/wrld_tokyo/info"), world.WorldPageUrl);
             },
             category =>
             {

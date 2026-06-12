@@ -1,10 +1,11 @@
 using System.Text.Json.Serialization;
 using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.Contracts.Portal;
-using VrcWebMap.Backend.Contracts.Restaurants;
+using VrcWebMap.Backend.Contracts.PlaceInfos;
 using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Contracts.Users;
 using VrcWebMap.Backend.Contracts.VRChatWorlds;
+using VrcWebMap.Backend.Contracts.WebLinks;
 using VrcWebMap.Backend.Models;
 
 namespace VrcWebMap.Backend.Serialization;
@@ -15,8 +16,10 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(VRChatWorld[]))]
 [JsonSerializable(typeof(AreaDefinition))]
 [JsonSerializable(typeof(AreaDefinition[]))]
-[JsonSerializable(typeof(Restaurant))]
-[JsonSerializable(typeof(Restaurant[]))]
+[JsonSerializable(typeof(PlaceInfo))]
+[JsonSerializable(typeof(PlaceInfo[]))]
+[JsonSerializable(typeof(WebLink))]
+[JsonSerializable(typeof(WebLink[]))]
 [JsonSerializable(typeof(Comment))]
 [JsonSerializable(typeof(Comment[]))]
 [JsonSerializable(typeof(DiscordUser))]
@@ -46,12 +49,21 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(UpdateVRChatWorld.Response), TypeInfoPropertyName = "UpdateVRChatWorldResponse")]
 [JsonSerializable(typeof(DeleteVRChatWorld.Request), TypeInfoPropertyName = "DeleteVRChatWorldRequest")]
 [JsonSerializable(typeof(DeleteVRChatWorld.Response), TypeInfoPropertyName = "DeleteVRChatWorldResponse")]
-[JsonSerializable(typeof(CreateRestaurant.Request), TypeInfoPropertyName = "CreateRestaurantRequest")]
-[JsonSerializable(typeof(CreateRestaurant.Response), TypeInfoPropertyName = "CreateRestaurantResponse")]
-[JsonSerializable(typeof(UpdateRestaurant.Request), TypeInfoPropertyName = "UpdateRestaurantRequest")]
-[JsonSerializable(typeof(UpdateRestaurant.Response), TypeInfoPropertyName = "UpdateRestaurantResponse")]
-[JsonSerializable(typeof(DeleteRestaurant.Request), TypeInfoPropertyName = "DeleteRestaurantRequest")]
-[JsonSerializable(typeof(DeleteRestaurant.Response), TypeInfoPropertyName = "DeleteRestaurantResponse")]
+[JsonSerializable(typeof(CreatePlaceInfo.Request), TypeInfoPropertyName = "CreatePlaceInfoRequest")]
+[JsonSerializable(typeof(CreatePlaceInfo.Response), TypeInfoPropertyName = "CreatePlaceInfoResponse")]
+[JsonSerializable(typeof(UpdatePlaceInfo.Request), TypeInfoPropertyName = "UpdatePlaceInfoRequest")]
+[JsonSerializable(typeof(UpdatePlaceInfo.Response), TypeInfoPropertyName = "UpdatePlaceInfoResponse")]
+[JsonSerializable(typeof(DeletePlaceInfo.Request), TypeInfoPropertyName = "DeletePlaceInfoRequest")]
+[JsonSerializable(typeof(DeletePlaceInfo.Response), TypeInfoPropertyName = "DeletePlaceInfoResponse")]
+[JsonSerializable(typeof(CreateWebLink.Request), TypeInfoPropertyName = "CreateWebLinkRequest")]
+[JsonSerializable(typeof(CreateWebLink.Response), TypeInfoPropertyName = "CreateWebLinkResponse")]
+[JsonSerializable(typeof(UpdateWebLink.Request), TypeInfoPropertyName = "UpdateWebLinkRequest")]
+[JsonSerializable(typeof(UpdateWebLink.Response), TypeInfoPropertyName = "UpdateWebLinkResponse")]
+[JsonSerializable(typeof(DeleteWebLink.Request), TypeInfoPropertyName = "DeleteWebLinkRequest")]
+[JsonSerializable(typeof(DeleteWebLink.Response), TypeInfoPropertyName = "DeleteWebLinkResponse")]
+[JsonSerializable(typeof(GetWebLinkPreview.Request), TypeInfoPropertyName = "GetWebLinkPreviewRequest")]
+[JsonSerializable(typeof(GetWebLinkPreview.Response), TypeInfoPropertyName = "GetWebLinkPreviewResponse")]
+[JsonSerializable(typeof(GetWebLinkPreview.Preview), TypeInfoPropertyName = "GetWebLinkPreviewPreview")]
 [JsonSerializable(typeof(CreateComment.Request), TypeInfoPropertyName = "CreateCommentRequest")]
 [JsonSerializable(typeof(CreateComment.Response), TypeInfoPropertyName = "CreateCommentResponse")]
 [JsonSerializable(typeof(UpdateComment.Request), TypeInfoPropertyName = "UpdateCommentRequest")]
@@ -61,6 +73,8 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(RegisterDiscordUser.Request), TypeInfoPropertyName = "RegisterDiscordUserRequest")]
 [JsonSerializable(typeof(RegisterDiscordUser.Response), TypeInfoPropertyName = "RegisterDiscordUserResponse")]
 [JsonSerializable(typeof(AuthSession.CurrentUserResponse), TypeInfoPropertyName = "AuthSessionCurrentUserResponse")]
+[JsonSerializable(typeof(AuthSession.DevelopmentUserResponse), TypeInfoPropertyName = "AuthSessionDevelopmentUserResponse")]
+[JsonSerializable(typeof(AuthSession.DevelopmentUserResponse[]), TypeInfoPropertyName = "AuthSessionDevelopmentUserResponseArray")]
 [JsonSerializable(typeof(AuthSession.LogoutResponse), TypeInfoPropertyName = "AuthSessionLogoutResponse")]
 internal partial class AppJsonSerializerContext : JsonSerializerContext
 {

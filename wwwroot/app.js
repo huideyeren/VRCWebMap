@@ -1,144 +1,1283 @@
-const form = document.querySelector("#map-form");
-const message = document.querySelector("#message");
-const mapsContainer = document.querySelector("#maps");
-const reloadButton = document.querySelector("#reload-button");
-const resetButton = document.querySelector("#reset-button");
-const localUserId = "local-user";
+import React, { useEffect, useMemo, useRef, useState } from "https://esm.sh/react@19.1.1?pin=v135";
+import { createRoot } from "https://esm.sh/react-dom@19.1.1/client?pin=v135";
 
-const fields = {
-    id: document.querySelector("#map-id"),
-    name: document.querySelector("#name"),
-    description: document.querySelector("#description"),
-    latitude: document.querySelector("#latitude"),
-    longitude: document.querySelector("#longitude"),
-    areaCode: document.querySelector("#area-code")
-};
+const TokyoStation = [35.681236, 139.767125];
+const DefaultAreaCode = 13;
+const AnonymousUserId = "local-user";
 
-resetForm();
-await loadMaps();
+function App() {
+    const mapElementRef = useRef(null);
+    const mapRef = useRef(null);
+    const markersRef = useRef(new Map());
+    const pendingCenterRef = useRef(null);
+    const [spots, setSpots] = useState([]);
+    const [selectedSpot, setSelectedSpot] = useState(null);
+    const [selectedDetails, setSelectedDetails] = useState(null);
+    const [draft, setDraft] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [developmentUsers, setDevelopmentUsers] = useState([]);
+    const [message, setMessage] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+    const [isDownloadingPortal, setIsDownloadingPortal] = useState(false);
+    const spotCount = spots.length;
+    const actorUserId = currentUser?.discordUserId ?? AnonymousUserId;
+    const registrantName = currentUser?.displayName ?? currentUser?.username ?? AnonymousUserId;
 
-form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    await saveMap();
-});
+    useEffect(() => {
+        loadCurrentUser().then(setCurrentUser).catch(() => setCurrentUser(null));
+        loadDevelopmentUsers().then(setDevelopmentUsers).catch(() => setDevelopmentUsers([]));
+        loadInitialMapState().catch((error) => setMessage(error.message));
+    }, []);
 
-reloadButton.addEventListener("click", loadMaps);
-resetButton.addEventListener("click", resetForm);
+    useEffect(() => {
+        if (mapRef.current || !mapElementRef.current) {
+            return;
+        }
 
-async function loadMaps() {
-    message.textContent = "";
-    const response = await fetch("/spots/list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
-    });
+        const map = L.map(mapElementRef.current, {
+            zoomControl: false
+        }).setView(TokyoStation, 6);
 
-    if (!response.ok) {
-        message.textContent = "地図一覧の取得に失敗しました。";
-        return;
+        L.control.zoom({ position: "bottomleft" }).addTo(map);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(map);
+
+        map.on("contextmenu", (event) => {
+            const lat = roundCoordinate(event.latlng.lat);
+            const lng = roundCoordinate(event.latlng.lng);
+            clearLinkedSpotId();
+            setDraft({
+                name: "",
+                description: "",
+                latitude: lat,
+                longitude: lng,
+                areaCode: DefaultAreaCode
+            });
+            setSelectedSpot(null);
+            setSelectedDetails(null);
+            setMessage("右クリックした位置に Spot を登録できます。");
+        });
+
+        mapRef.current = map;
+        applyPendingCenter();
+
+        return () => {
+            map.remove();
+            mapRef.current = null;
+        };
+    }, []);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) {
+            return;
+        }
+
+        for (const marker of markersRef.current.values()) {
+            marker.remove();
+        }
+        markersRef.current.clear();
+
+        for (const spot of spots) {
+            const marker = L.marker([spot.latitude, spot.longitude])
+                .addTo(map)
+                .bindPopup(`<strong>${escapeHtml(spot.name)}</strong><br>${escapeHtml(spot.description)}`);
+            marker.on("click", () => selectSpot(spot));
+            markersRef.current.set(spot.id, marker);
+        }
+    }, [spots]);
+
+    const panelTitle = useMemo(() => {
+        if (draft) {
+            return "Spot を登録";
+        }
+
+        if (selectedSpot) {
+            return selectedSpot.name;
+        }
+
+        return "Spot 詳細";
+    }, [draft, selectedSpot]);
+
+    async function loadInitialMapState() {
+        setMessage("");
+        const loaded = await loadSpots();
+        setSpots(loaded);
+
+        const linkedSpotId = getLinkedSpotId();
+        if (linkedSpotId) {
+            try {
+                const details = await getSpot(linkedSpotId);
+                setSelectedSpot(details.spot);
+                setSelectedDetails(details);
+                centerMapOnSpot(details.spot);
+                return;
+            } catch (error) {
+                setMessage(`Spot 直リンクの読み込みに失敗しました: ${error.message}`);
+            }
+        }
+
+        centerMapOnCurrentPosition();
     }
 
-    const result = await response.json();
-    renderMaps(result.spots);
+    async function refreshSpots() {
+        setMessage("");
+        const loaded = await loadSpots();
+        setSpots(loaded);
+    }
+
+    async function selectSpot(spot, options = {}) {
+        const shouldUpdateUrl = options.updateUrl ?? true;
+        const shouldCenter = options.center ?? true;
+        setSelectedSpot(spot);
+        setDraft(null);
+        setMessage("");
+
+        if (shouldUpdateUrl) {
+            setLinkedSpotId(spot.id);
+        }
+
+        if (shouldCenter) {
+            centerMapOnSpot(spot);
+        }
+
+        try {
+            const details = await getSpot(spot.id);
+            setSelectedDetails(details);
+        } catch (error) {
+            setSelectedDetails(null);
+            setMessage(error.message);
+        }
+    }
+
+    function centerMapOnSpot(spot) {
+        centerMap([spot.latitude, spot.longitude], 15);
+    }
+
+    function centerMapOnCurrentPosition() {
+        if (!navigator.geolocation) {
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                centerMap([position.coords.latitude, position.coords.longitude], 13);
+            },
+            () => {
+                // 位置情報は任意。拒否や取得失敗時はデフォルト中心のままにする。
+            },
+            {
+                enableHighAccuracy: false,
+                maximumAge: 300000,
+                timeout: 5000
+            });
+    }
+
+    function centerMap(center, zoom) {
+        const map = mapRef.current;
+        if (!map) {
+            pendingCenterRef.current = { center, zoom };
+            return;
+        }
+
+        map.setView(center, zoom);
+    }
+
+    function applyPendingCenter() {
+        const pending = pendingCenterRef.current;
+        if (!pending || !mapRef.current) {
+            return;
+        }
+
+        mapRef.current.setView(pending.center, pending.zoom);
+        pendingCenterRef.current = null;
+    }
+
+    async function reloadSelectedSpot(spotId = selectedSpot?.id) {
+        if (!spotId) {
+            return;
+        }
+
+        const details = await getSpot(spotId);
+        setSelectedDetails(details);
+        setSelectedSpot(details.spot);
+    }
+
+    async function reloadAfterSpotMutation(spotId) {
+        const loaded = await loadSpots();
+        setSpots(loaded);
+
+        if (spotId) {
+            await reloadSelectedSpot(spotId);
+        }
+    }
+
+    async function clearDeletedSpot() {
+        setSelectedSpot(null);
+        setSelectedDetails(null);
+        clearLinkedSpotId();
+        await refreshSpots();
+    }
+
+    async function saveDraft(event) {
+        event.preventDefault();
+        if (!draft) {
+            return;
+        }
+
+        setIsSaving(true);
+        setMessage("");
+
+        try {
+            const created = await createSpot({
+                registeredByUserId: actorUserId,
+                name: draft.name,
+                latitude: Number(draft.latitude),
+                longitude: Number(draft.longitude),
+                areaCode: Number(draft.areaCode),
+                description: draft.description
+            });
+            const loaded = await loadSpots();
+            setSpots(loaded);
+            setDraft(null);
+            setSelectedSpot(created);
+            await selectSpot(created);
+        } catch (error) {
+            setMessage(error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    async function downloadPortalData() {
+        setIsDownloadingPortal(true);
+        setMessage("");
+
+        try {
+            const body = await postJson("/portal/world-data", { showPrivateWorld: true });
+            const portalData = unwrap(body);
+            const blob = new Blob([JSON.stringify(portalData, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = "WorldData.json";
+            document.body.append(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+            setMessage("PortalLibrarySystem 用 WorldData.json をダウンロードしました。");
+        } catch (error) {
+            setMessage(error.message);
+        } finally {
+            setIsDownloadingPortal(false);
+        }
+    }
+
+    return React.createElement("div", { className: "app-shell" },
+        React.createElement("nav", { className: "top-menu" },
+            React.createElement("div", null,
+                React.createElement("p", { className: "eyebrow" }, "VRC Web Map"),
+                React.createElement("strong", null, "Map Console")
+            ),
+            React.createElement("div", { className: "menu-actions" },
+                currentUser
+                    ? React.createElement("span", { className: "user-chip" }, currentUser.displayName ?? currentUser.username)
+                    : React.createElement(React.Fragment, null,
+                        React.createElement("a", { className: "menu-button", href: "/auth/discord/login" }, "Discord ログイン"),
+                        developmentUsers.map((user) =>
+                            React.createElement("a", {
+                                key: user.userId,
+                                className: user.isAdmin ? "menu-button" : "menu-button secondary",
+                                href: user.loginUrl
+                            }, user.isAdmin ? "開発: 管理者" : "開発: 一般")
+                        )
+                    ),
+                React.createElement("button", {
+                    type: "button",
+                    className: "secondary",
+                    onClick: downloadPortalData,
+                    disabled: isDownloadingPortal
+                }, isDownloadingPortal ? "生成中..." : "WorldData.json ダウンロード")
+            )
+        ),
+        React.createElement("section", { className: "map-frame" },
+            React.createElement("div", { className: "map-brand" },
+                React.createElement("p", { className: "eyebrow" }, "VRC Web Map"),
+                React.createElement("h1", null, "Spot Atlas"),
+                React.createElement("p", { className: "hint" }, "地図を右クリックして Spot を登録。marker をクリックすると右ペインに詳細を表示します。")
+            ),
+            React.createElement("div", { id: "map", ref: mapElementRef, "aria-label": "Spot map" })
+        ),
+        React.createElement("aside", { className: "side-panel" },
+            React.createElement("header", { className: "panel-header" },
+                React.createElement("p", { className: "eyebrow" }, `${spotCount} spots`),
+                React.createElement("h2", null, panelTitle),
+                React.createElement("p", { className: "meta" }, currentUser ? `ログイン中: ${currentUser.displayName ?? currentUser.username}` : "未ログイン: local-user として登録します。")
+            ),
+            React.createElement("div", { className: "panel-body" },
+                message ? React.createElement("p", { className: "notice", role: "status" }, message) : null,
+                draft ? React.createElement(SpotForm, {
+                    draft,
+                    isSaving,
+                    onChange: setDraft,
+                    onSubmit: saveDraft,
+                    onCancel: () => {
+                        setDraft(null);
+                        setMessage("");
+                    }
+                }) : null,
+                !draft && selectedSpot ? React.createElement(SpotDetails, {
+                    spot: selectedSpot,
+                    details: selectedDetails,
+                    currentUser,
+                    registeredByUserId: actorUserId,
+                    registrantName,
+                    onCreated: reloadSelectedSpot,
+                    onSpotUpdated: reloadAfterSpotMutation,
+                    onSpotDeleted: clearDeletedSpot,
+                    onMessage: setMessage
+                }) : null,
+                !draft && !selectedSpot ? React.createElement(EmptyState, { onReload: refreshSpots }) : null,
+                React.createElement(SpotList, { spots, selectedSpotId: selectedSpot?.id, onSelect: selectSpot })
+            )
+        )
+    );
 }
 
-async function saveMap() {
-    const id = fields.id.value;
-    const payload = {
-        name: fields.name.value,
-        latitude: Number(fields.latitude.value),
-        longitude: Number(fields.longitude.value),
-        areaCode: Number(fields.areaCode.value),
-        description: fields.description.value
-    };
-    const body = id
-        ? { id, actorUserId: localUserId, actorIsAdmin: false, ...payload }
-        : { registeredByUserId: localUserId, ...payload };
+function SpotForm({ draft, isSaving, onChange, onSubmit, onCancel, submitLabel = "Spot を登録" }) {
+    const update = (key) => (event) => onChange({ ...draft, [key]: event.target.value });
 
-    const response = await fetch(id ? "/spots/update" : "/spots/create", {
+    return React.createElement("form", { className: "card form-grid", onSubmit },
+        React.createElement("label", null,
+            "Spot 名",
+            React.createElement("input", {
+                value: draft.name,
+                onChange: update("name"),
+                required: true,
+                maxLength: 200,
+                placeholder: "例: 秋葉原イベント会場"
+            })
+        ),
+        React.createElement("label", null,
+            "説明 Markdown",
+            React.createElement("textarea", {
+                value: draft.description,
+                onChange: update("description"),
+                required: true,
+                rows: 4,
+                placeholder: "例: ## 見出し\n- VRChat ワールド\n- 飲食店情報"
+            })
+        ),
+        React.createElement("div", { className: "two-column" },
+            React.createElement("label", null,
+                "緯度",
+                React.createElement("input", {
+                    type: "number",
+                    step: "0.000001",
+                    min: "-90",
+                    max: "90",
+                    value: draft.latitude,
+                    onChange: update("latitude"),
+                    required: true
+                })
+            ),
+            React.createElement("label", null,
+                "経度",
+                React.createElement("input", {
+                    type: "number",
+                    step: "0.000001",
+                    min: "-180",
+                    max: "180",
+                    value: draft.longitude,
+                    onChange: update("longitude"),
+                    required: true
+                })
+            )
+        ),
+        React.createElement("label", null,
+            "都道府県/地域コード",
+            React.createElement("input", {
+                type: "number",
+                min: "1",
+                value: draft.areaCode,
+                onChange: update("areaCode"),
+                required: true
+            })
+        ),
+        React.createElement("div", { className: "actions" },
+            React.createElement("button", { type: "submit", disabled: isSaving }, isSaving ? "保存中..." : submitLabel),
+            React.createElement("button", { type: "button", className: "secondary", onClick: onCancel }, "キャンセル")
+        )
+    );
+}
+
+function SpotDetails({ spot, details, currentUser, registeredByUserId, registrantName, onCreated, onSpotUpdated, onSpotDeleted, onMessage }) {
+    const worlds = details?.vrChatWorlds ?? [];
+    const placeInfos = details?.placeInfos ?? [];
+    const webLinks = details?.webLinks ?? [];
+    const comments = details?.comments ?? [];
+
+    return React.createElement("section", { className: "card" },
+        React.createElement("h3", null, spot.name),
+        renderMarkdown(spot.description),
+        React.createElement("p", { className: "meta" }, `座標: ${formatCoordinate(spot.latitude)}, ${formatCoordinate(spot.longitude)}`),
+        React.createElement("p", { className: "meta" }, `地域コード: ${spot.areaCode}`),
+        React.createElement(AddContentForms, { spot, registeredByUserId, registrantName, onCreated, onMessage }),
+        currentUser?.isAdmin ? React.createElement(AdminPanel, {
+            spot,
+            worlds,
+            placeInfos,
+            webLinks,
+            comments,
+            actorUserId: currentUser.discordUserId,
+            onChanged: onSpotUpdated,
+            onDeleted: onSpotDeleted,
+            onMessage
+        }) : null,
+        React.createElement(RelatedSection, { title: "VRChat Worlds", items: worlds, render: renderWorld }),
+        React.createElement(RelatedSection, { title: "Place Infos", items: placeInfos, render: renderPlaceInfo }),
+        React.createElement(RelatedSection, { title: "Web Links", items: webLinks, render: renderWebLink }),
+        React.createElement(RelatedSection, { title: "Comments", items: comments, render: renderComment })
+    );
+}
+
+function RelatedSection({ title, items, render }) {
+    return React.createElement("div", { className: "related-list" },
+        React.createElement("h3", null, title),
+        items.length === 0
+            ? React.createElement("p", { className: "meta" }, "まだ登録されていません。")
+            : items.map((item) => React.createElement("div", { key: item.id, className: "related-item" }, render(item)))
+    );
+}
+
+function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, onMessage }) {
+    const [kind, setKind] = useState("world");
+    const [isSaving, setIsSaving] = useState(false);
+    const [world, setWorld] = useState(createEmptyWorld());
+    const [placeInfo, setPlaceInfo] = useState(createEmptyPlaceInfo());
+    const [webLink, setWebLink] = useState(createEmptyWebLink());
+    const [comment, setComment] = useState("");
+
+    async function submit(event) {
+        event.preventDefault();
+        setIsSaving(true);
+        onMessage("");
+
+        try {
+            if (kind === "world") {
+                await createVRChatWorld({
+                    spotId: spot.id,
+                    registeredByUserId,
+                    vrChatWorldId: normalizeWorldId(world.vrChatWorldId),
+                    name: world.name,
+                    recommendedCapacity: Number(world.recommendedCapacity),
+                    capacity: Number(world.capacity),
+                    description: world.description,
+                    pc: world.pc,
+                    android: world.android,
+                    ios: world.ios,
+                    isPrivate: world.isPrivate
+                });
+                setWorld(createEmptyWorld());
+            } else if (kind === "placeInfo") {
+                await createPlaceInfo({
+                    spotId: spot.id,
+                    registeredByUserId,
+                    name: placeInfo.name,
+                    address: placeInfo.address,
+                    businessInformation: placeInfo.businessInformation
+                });
+                setPlaceInfo(createEmptyPlaceInfo());
+            } else if (kind === "webLink") {
+                await createWebLink({
+                    spotId: spot.id,
+                    registeredByUserId,
+                    siteName: webLink.siteName,
+                    url: webLink.url
+                });
+                setWebLink(createEmptyWebLink());
+            } else {
+                await createComment({
+                    spotId: spot.id,
+                    registeredByUserId,
+                    comments: comment
+                });
+                setComment("");
+            }
+
+            await onCreated(spot.id);
+            onMessage("追加しました。");
+        } catch (error) {
+            onMessage(error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    return React.createElement("form", { className: "content-form", onSubmit: submit },
+        React.createElement("div", { className: "segmented" },
+            React.createElement("button", { type: "button", className: kind === "world" ? "" : "secondary", onClick: () => setKind("world") }, "VRChat World"),
+            React.createElement("button", { type: "button", className: kind === "placeInfo" ? "" : "secondary", onClick: () => setKind("placeInfo") }, "場所情報"),
+            React.createElement("button", { type: "button", className: kind === "webLink" ? "" : "secondary", onClick: () => setKind("webLink") }, "Webリンク"),
+            React.createElement("button", { type: "button", className: kind === "comment" ? "" : "secondary", onClick: () => setKind("comment") }, "コメント")
+        ),
+        kind === "world" ? React.createElement(WorldFields, { value: world, onChange: setWorld }) : null,
+        kind === "placeInfo" ? React.createElement(PlaceInfoFields, { value: placeInfo, onChange: setPlaceInfo }) : null,
+        kind === "webLink" ? React.createElement(WebLinkFields, { value: webLink, onChange: setWebLink }) : null,
+        kind === "comment" ? React.createElement(CommentFields, { value: comment, onChange: setComment }) : null,
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${registrantName}`),
+        React.createElement("button", { type: "submit", disabled: isSaving }, isSaving ? "追加中..." : "右ペインに追加")
+    );
+}
+
+function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, actorUserId, onChanged, onDeleted, onMessage }) {
+    const actor = { actorUserId, actorIsAdmin: true };
+
+    return React.createElement("section", { className: "admin-panel" },
+        React.createElement("p", { className: "eyebrow" }, "Admin only"),
+        React.createElement("h3", null, "管理者編集"),
+        React.createElement("p", { className: "meta" }, "管理者として Spot と関連データを編集・削除できます。"),
+        React.createElement(AdminSpotEditor, { spot, actor, onChanged, onDeleted, onMessage }),
+        React.createElement(AdminWorldSection, { items: worlds, actor, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminPlaceInfoSection, { items: placeInfos, actor, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminWebLinkSection, { items: webLinks, actor, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminCommentSection, { items: comments, actor, onChanged: () => onChanged(spot.id), onMessage })
+    );
+}
+
+function AdminSpotEditor({ spot, actor, onChanged, onDeleted, onMessage }) {
+    const [draft, setDraft] = useState(createSpotDraft(spot));
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        setDraft(createSpotDraft(spot));
+    }, [spot]);
+
+    async function submit(event) {
+        event.preventDefault();
+        setIsSaving(true);
+        onMessage("");
+
+        try {
+            const updated = await updateSpot({
+                id: spot.id,
+                ...actor,
+                name: draft.name,
+                latitude: Number(draft.latitude),
+                longitude: Number(draft.longitude),
+                areaCode: Number(draft.areaCode),
+                description: draft.description
+            });
+            await onChanged(updated.id);
+            onMessage("Spot を更新しました。");
+        } catch (error) {
+            onMessage(error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    async function remove() {
+        if (!confirm("この Spot を削除します。関連データが残っている場合は削除できません。よろしいですか？")) {
+            return;
+        }
+
+        setIsSaving(true);
+        onMessage("");
+
+        try {
+            await deleteSpot({ id: spot.id, ...actor });
+            await onDeleted();
+            onMessage("Spot を削除しました。");
+        } catch (error) {
+            onMessage(error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    return React.createElement("div", { className: "admin-card" },
+        React.createElement("h4", null, "Spot"),
+        React.createElement(SpotForm, {
+            draft,
+            isSaving,
+            onChange: setDraft,
+            onSubmit: submit,
+            onCancel: () => setDraft(createSpotDraft(spot)),
+            submitLabel: "Spot を更新"
+        }),
+        React.createElement("button", { type: "button", className: "danger", onClick: remove, disabled: isSaving }, "Spot を削除")
+    );
+}
+
+function AdminWorldSection({ items, actor, onChanged, onMessage }) {
+    return React.createElement(AdminEditableSection, {
+        title: "VRChat Worlds",
+        items,
+        getLabel: (world) => world.name,
+        createDraft: createWorldDraft,
+        renderForm: (draft, setDraft) => React.createElement(WorldFields, { value: draft, onChange: setDraft }),
+        onUpdate: (world, draft) => updateVRChatWorld({
+            id: world.id,
+            ...actor,
+            vrChatWorldId: normalizeWorldId(draft.vrChatWorldId),
+            name: draft.name,
+            recommendedCapacity: Number(draft.recommendedCapacity),
+            capacity: Number(draft.capacity),
+            description: draft.description,
+            pc: draft.pc,
+            android: draft.android,
+            ios: draft.ios,
+            isPrivate: draft.isPrivate
+        }),
+        onDelete: (world) => deleteVRChatWorld({ id: world.id, ...actor }),
+        onChanged,
+        onMessage
+    });
+}
+
+function AdminPlaceInfoSection({ items, actor, onChanged, onMessage }) {
+    return React.createElement(AdminEditableSection, {
+        title: "Place Infos",
+        items,
+        getLabel: (placeInfo) => placeInfo.name,
+        createDraft: createPlaceInfoDraft,
+        renderForm: (draft, setDraft) => React.createElement(PlaceInfoFields, { value: draft, onChange: setDraft }),
+        onUpdate: (placeInfo, draft) => updatePlaceInfo({
+            id: placeInfo.id,
+            ...actor,
+            name: draft.name,
+            address: draft.address,
+            businessInformation: draft.businessInformation
+        }),
+        onDelete: (placeInfo) => deletePlaceInfo({ id: placeInfo.id, ...actor }),
+        onChanged,
+        onMessage
+    });
+}
+
+function AdminWebLinkSection({ items, actor, onChanged, onMessage }) {
+    return React.createElement(AdminEditableSection, {
+        title: "Web Links",
+        items,
+        getLabel: (webLink) => webLink.siteName,
+        createDraft: createWebLinkDraft,
+        renderForm: (draft, setDraft) => React.createElement(WebLinkFields, { value: draft, onChange: setDraft }),
+        onUpdate: (webLink, draft) => updateWebLink({
+            id: webLink.id,
+            ...actor,
+            siteName: draft.siteName,
+            url: draft.url
+        }),
+        onDelete: (webLink) => deleteWebLink({ id: webLink.id, ...actor }),
+        onChanged,
+        onMessage
+    });
+}
+
+function AdminCommentSection({ items, actor, onChanged, onMessage }) {
+    return React.createElement(AdminEditableSection, {
+        title: "Comments",
+        items,
+        getLabel: (comment) => comment.comments.slice(0, 40) || comment.id,
+        createDraft: (comment) => ({ comments: comment.comments }),
+        renderForm: (draft, setDraft) => React.createElement(CommentFields, {
+            value: draft.comments,
+            onChange: (comments) => setDraft({ comments })
+        }),
+        onUpdate: (comment, draft) => updateComment({
+            id: comment.id,
+            ...actor,
+            comments: draft.comments
+        }),
+        onDelete: (comment) => deleteComment({ id: comment.id, ...actor }),
+        onChanged,
+        onMessage
+    });
+}
+
+function AdminEditableSection({ title, items, getLabel, createDraft, renderForm, onUpdate, onDelete, onChanged, onMessage }) {
+    const [editingId, setEditingId] = useState(null);
+    const [draft, setDraft] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+
+    function beginEdit(item) {
+        setEditingId(item.id);
+        setDraft(createDraft(item));
+    }
+
+    async function submit(event, item) {
+        event.preventDefault();
+        setIsSaving(true);
+        onMessage("");
+
+        try {
+            await onUpdate(item, draft);
+            setEditingId(null);
+            setDraft(null);
+            await onChanged();
+            onMessage(`${title} を更新しました。`);
+        } catch (error) {
+            onMessage(error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    async function remove(item) {
+        if (!confirm(`${getLabel(item)} を削除します。よろしいですか？`)) {
+            return;
+        }
+
+        setIsSaving(true);
+        onMessage("");
+
+        try {
+            await onDelete(item);
+            await onChanged();
+            onMessage(`${title} を削除しました。`);
+        } catch (error) {
+            onMessage(error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    return React.createElement("div", { className: "admin-card" },
+        React.createElement("h4", null, title),
+        items.length === 0
+            ? React.createElement("p", { className: "meta" }, "対象データはありません。")
+            : items.map((item) => React.createElement("div", { key: item.id, className: "admin-row" },
+                editingId === item.id
+                    ? React.createElement("form", { className: "content-form", onSubmit: (event) => submit(event, item) },
+                        renderForm(draft, setDraft),
+                        React.createElement("div", { className: "actions" },
+                            React.createElement("button", { type: "submit", disabled: isSaving }, isSaving ? "保存中..." : "更新"),
+                            React.createElement("button", { type: "button", className: "secondary", onClick: () => setEditingId(null), disabled: isSaving }, "キャンセル")
+                        )
+                    )
+                    : React.createElement(React.Fragment, null,
+                        React.createElement("p", { className: "meta" }, getLabel(item)),
+                        React.createElement("div", { className: "actions" },
+                            React.createElement("button", { type: "button", className: "secondary", onClick: () => beginEdit(item), disabled: isSaving }, "編集"),
+                            React.createElement("button", { type: "button", className: "danger", onClick: () => remove(item), disabled: isSaving }, "削除")
+                        )
+                    )
+            ))
+    );
+}
+
+function WorldFields({ value, onChange }) {
+    const update = (key) => (event) => onChange({ ...value, [key]: event.target.type === "checkbox" ? event.target.checked : event.target.value });
+
+    return React.createElement("div", { className: "form-grid" },
+        React.createElement("label", null, "VRChat World ID または URL", React.createElement("input", { value: value.vrChatWorldId, onChange: update("vrChatWorldId"), required: true, placeholder: "wrld_... または https://vrchat.com/home/world/wrld_.../info" })),
+        React.createElement("label", null, "ワールド名", React.createElement("input", { value: value.name, onChange: update("name"), required: true })),
+        React.createElement("div", { className: "two-column" },
+            React.createElement("label", null, "推奨人数", React.createElement("input", { type: "number", min: "0", value: value.recommendedCapacity, onChange: update("recommendedCapacity"), required: true })),
+            React.createElement("label", null, "最大人数", React.createElement("input", { type: "number", min: "0", value: value.capacity, onChange: update("capacity"), required: true }))
+        ),
+        React.createElement("label", null, "説明", React.createElement("textarea", { value: value.description, onChange: update("description"), required: true, rows: 3 })),
+        React.createElement("div", { className: "check-row" },
+            React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.pc, onChange: update("pc") }), "PC"),
+            React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.android, onChange: update("android") }), "Android"),
+            React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.ios, onChange: update("ios") }), "iOS"),
+            React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.isPrivate, onChange: update("isPrivate") }), "Private")
+        )
+    );
+}
+
+function PlaceInfoFields({ value, onChange }) {
+    const update = (key) => (event) => onChange({ ...value, [key]: event.target.value });
+
+    return React.createElement("div", { className: "form-grid" },
+        React.createElement("label", null, "場所名", React.createElement("input", { value: value.name, onChange: update("name"), required: true })),
+        React.createElement("label", null, "所在地", React.createElement("input", { value: value.address, onChange: update("address"), required: true })),
+        React.createElement("label", null, "営業情報 Markdown", React.createElement("textarea", { value: value.businessInformation, onChange: update("businessInformation"), required: true, rows: 4, placeholder: "- 昼: 11:00-14:00\n- 夜: 17:00-22:00\n- 定休日: 火曜" }))
+    );
+}
+
+function WebLinkFields({ value, onChange }) {
+    const update = (key) => (event) => onChange({ ...value, [key]: event.target.value });
+
+    return React.createElement("div", { className: "form-grid" },
+        React.createElement("label", null, "サイト名", React.createElement("input", { value: value.siteName, onChange: update("siteName"), required: true, placeholder: "公式サイト / 食べログ / X など" })),
+        React.createElement("label", null, "URL", React.createElement("input", { type: "url", value: value.url, onChange: update("url"), required: true }))
+    );
+}
+
+function CommentFields({ value, onChange }) {
+    return React.createElement("label", null,
+        "コメント Markdown",
+        React.createElement("textarea", { value, onChange: (event) => onChange(event.target.value), required: true, rows: 4 })
+    );
+}
+
+function EmptyState({ onReload }) {
+    return React.createElement("section", { className: "card" },
+        React.createElement("h3", null, "Spot を選択してください"),
+        React.createElement("p", { className: "meta" }, "地図上の marker をクリックすると詳細が表示されます。新しい Spot は地図を右クリックして登録します。"),
+        React.createElement("button", { type: "button", className: "secondary", onClick: onReload }, "Spot を再読み込み")
+    );
+}
+
+function SpotList({ spots, selectedSpotId, onSelect }) {
+    return React.createElement("section", { className: "card" },
+        React.createElement("h3", null, "Spot 一覧"),
+        spots.length === 0
+            ? React.createElement("p", { className: "meta" }, "登録済み Spot はありません。")
+            : React.createElement("div", { className: "related-list" }, spots.map((spot) =>
+                React.createElement("button", {
+                    key: spot.id,
+                    type: "button",
+                    className: spot.id === selectedSpotId ? "" : "secondary",
+                    onClick: () => onSelect(spot)
+                }, spot.name)
+            ))
+    );
+}
+
+function renderWorld(world) {
+    const url = getWorldPageUrl(world);
+
+    return React.createElement(React.Fragment, null,
+        React.createElement(OgpPreviewCard, {
+            url,
+            fallbackTitle: world.name,
+            fallbackDescription: world.description
+        }),
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${world.registeredByUserId}`),
+        React.createElement("p", { className: "meta" }, `人数: ${world.recommendedCapacity} 推奨 / ${world.capacity} 最大`),
+        React.createElement("p", { className: "meta" }, `Platform: ${platformLabel(world)}`)
+    );
+}
+
+function renderPlaceInfo(placeInfo) {
+    return React.createElement(React.Fragment, null,
+        React.createElement("strong", null, placeInfo.name),
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${placeInfo.registeredByUserId}`),
+        React.createElement("p", { className: "meta" }, placeInfo.address),
+        renderMarkdown(placeInfo.businessInformation)
+    );
+}
+
+function renderWebLink(webLink) {
+    return React.createElement(React.Fragment, null,
+        React.createElement(OgpPreviewCard, {
+            url: webLink.url,
+            fallbackTitle: webLink.siteName
+        }),
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${webLink.registeredByUserId}`)
+    );
+}
+
+function OgpPreviewCard({ url, fallbackTitle, fallbackDescription }) {
+    const [preview, setPreview] = useState(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        getWebLinkPreview(url)
+            .then((loaded) => {
+                if (!cancelled) {
+                    setPreview(loaded);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setPreview(null);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [url]);
+
+    const title = preview?.title ?? fallbackTitle;
+    const description = preview?.description ?? fallbackDescription;
+    const siteName = preview?.siteName;
+    const imageUrl = preview?.imageUrl;
+
+    return React.createElement("div", { className: "ogp-card" },
+        imageUrl ? React.createElement("img", { src: imageUrl, alt: "", loading: "lazy" }) : null,
+        React.createElement("div", null,
+            siteName ? React.createElement("p", { className: "eyebrow" }, siteName) : null,
+            React.createElement("strong", null, title),
+            description ? React.createElement("p", { className: "meta" }, description) : null,
+            React.createElement("a", { href: url, target: "_blank", rel: "noopener noreferrer" }, url)
+        )
+    );
+}
+
+function renderComment(comment) {
+    return React.createElement(React.Fragment, null,
+        renderMarkdown(comment.comments),
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${comment.registeredByUserId}`)
+    );
+}
+
+async function loadCurrentUser() {
+    const response = await fetch("/auth/me");
+    if (!response.ok) {
+        return null;
+    }
+
+    return response.json();
+}
+
+async function loadDevelopmentUsers() {
+    const response = await fetch("/auth/dev/users");
+    if (!response.ok) {
+        return [];
+    }
+
+    return response.json();
+}
+
+async function loadSpots() {
+    const body = await postJson("/spots/list", {});
+    return unwrap(body).spots ?? [];
+}
+
+async function getSpot(id) {
+    const body = await postJson("/spots/get", { id });
+    return unwrap(body);
+}
+
+async function createSpot(payload) {
+    const body = await postJson("/spots/create", payload);
+    return unwrap(body).spot;
+}
+
+async function updateSpot(payload) {
+    const body = await postJson("/spots/update", payload);
+    return unwrap(body).spot;
+}
+
+async function deleteSpot(payload) {
+    const body = await postJson("/spots/delete", payload);
+    return unwrap(body);
+}
+
+async function createVRChatWorld(payload) {
+    const body = await postJson("/vrchat-worlds/create", payload);
+    return unwrap(body).world;
+}
+
+async function updateVRChatWorld(payload) {
+    const body = await postJson("/vrchat-worlds/update", payload);
+    return unwrap(body).world;
+}
+
+async function deleteVRChatWorld(payload) {
+    const body = await postJson("/vrchat-worlds/delete", payload);
+    return unwrap(body);
+}
+
+async function createPlaceInfo(payload) {
+    const body = await postJson("/place-infos/create", payload);
+    return unwrap(body).placeInfo;
+}
+
+async function updatePlaceInfo(payload) {
+    const body = await postJson("/place-infos/update", payload);
+    return unwrap(body).placeInfo;
+}
+
+async function deletePlaceInfo(payload) {
+    const body = await postJson("/place-infos/delete", payload);
+    return unwrap(body);
+}
+
+async function createWebLink(payload) {
+    const body = await postJson("/web-links/create", payload);
+    return unwrap(body).webLink;
+}
+
+async function getWebLinkPreview(url) {
+    const body = await postJson("/web-links/preview", { url });
+    return unwrap(body).preview;
+}
+
+async function updateWebLink(payload) {
+    const body = await postJson("/web-links/update", payload);
+    return unwrap(body).webLink;
+}
+
+async function deleteWebLink(payload) {
+    const body = await postJson("/web-links/delete", payload);
+    return unwrap(body);
+}
+
+async function createComment(payload) {
+    const body = await postJson("/comments/create", payload);
+    return unwrap(body).comment;
+}
+
+async function updateComment(payload) {
+    const body = await postJson("/comments/update", payload);
+    return unwrap(body).comment;
+}
+
+async function deleteComment(payload) {
+    const body = await postJson("/comments/delete", payload);
+    return unwrap(body);
+}
+
+async function postJson(url, payload) {
+    const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+        body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
         const problem = await response.json().catch(() => null);
-        message.textContent = problem?.title ?? "保存に失敗しました。入力値を確認してください。";
-        return;
+        throw new Error(problem?.title ?? problem?.detail ?? `${url} failed with ${response.status}`);
     }
 
-    resetForm();
-    await loadMaps();
+    return response.json();
 }
 
-async function deleteMap(id) {
-    const response = await fetch("/spots/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, actorUserId: localUserId, actorIsAdmin: false })
+function unwrap(body) {
+    return body?.value ?? body;
+}
+
+function roundCoordinate(value) {
+    return Number(value.toFixed(6));
+}
+
+function formatCoordinate(value) {
+    return Number(value).toFixed(6);
+}
+
+function getLinkedSpotId() {
+    const params = new URLSearchParams(window.location.search);
+    const queryValue = params.get("spotId") ?? params.get("spot");
+    if (queryValue) {
+        return queryValue;
+    }
+
+    const hashValue = window.location.hash.match(/spot=([^&]+)/)?.[1];
+    return hashValue ? decodeURIComponent(hashValue) : null;
+}
+
+function setLinkedSpotId(spotId) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("spotId", spotId);
+    url.searchParams.delete("spot");
+    url.hash = "";
+    window.history.replaceState(null, "", url);
+}
+
+function clearLinkedSpotId() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("spotId");
+    url.searchParams.delete("spot");
+    url.hash = "";
+    window.history.replaceState(null, "", url);
+}
+
+function createEmptyWorld() {
+    return {
+        vrChatWorldId: "",
+        name: "",
+        recommendedCapacity: 16,
+        capacity: 32,
+        description: "",
+        pc: true,
+        android: false,
+        ios: false,
+        isPrivate: false
+    };
+}
+
+function createSpotDraft(spot) {
+    return {
+        name: spot.name,
+        description: spot.description,
+        latitude: spot.latitude,
+        longitude: spot.longitude,
+        areaCode: spot.areaCode
+    };
+}
+
+function createWorldDraft(world) {
+    return {
+        vrChatWorldId: world.vrChatWorldId,
+        name: world.name,
+        recommendedCapacity: world.recommendedCapacity,
+        capacity: world.capacity,
+        description: world.description,
+        pc: world.pc,
+        android: world.android,
+        ios: world.ios,
+        isPrivate: world.isPrivate
+    };
+}
+
+function createEmptyPlaceInfo() {
+    return {
+        name: "",
+        address: "",
+        businessInformation: "- 昼: 11:00-14:00\n- 夜: 17:00-22:00\n- 定休日: 不定休"
+    };
+}
+
+function createPlaceInfoDraft(placeInfo) {
+    return {
+        name: placeInfo.name,
+        address: placeInfo.address,
+        businessInformation: placeInfo.businessInformation
+    };
+}
+
+function createEmptyWebLink() {
+    return {
+        siteName: "",
+        url: ""
+    };
+}
+
+function createWebLinkDraft(webLink) {
+    return {
+        siteName: webLink.siteName,
+        url: webLink.url
+    };
+}
+
+function normalizeWorldId(value) {
+    const trimmed = value.trim();
+    const match = trimmed.match(/wrld_[0-9a-fA-F-]+/);
+    return match?.[0] ?? trimmed;
+}
+
+function getWorldPageUrl(world) {
+    if (world.worldPageUrl) {
+        return world.worldPageUrl;
+    }
+
+    return `https://vrchat.com/home/world/${normalizeWorldId(world.vrChatWorldId)}/info`;
+}
+
+function platformLabel(world) {
+    return [
+        world.pc ? "PC" : null,
+        world.android ? "Android" : null,
+        world.ios ? "iOS" : null
+    ].filter(Boolean).join(" / ") || "未設定";
+}
+
+function emptyToNull(value) {
+    const trimmed = value.trim();
+    if (trimmed === "") {
+        return null;
+    }
+
+    return /^https?:\/\//i.test(trimmed) ? trimmed : null;
+}
+
+function renderMarkdown(value) {
+    const lines = String(value ?? "").split(/\r?\n/);
+    const elements = [];
+    let index = 0;
+
+    while (index < lines.length) {
+        const line = lines[index];
+
+        if (line.trim() === "") {
+            index += 1;
+            continue;
+        }
+
+        const heading = line.match(/^(#{1,3})\s+(.+)$/);
+        if (heading) {
+            const tag = `h${Math.min(heading[1].length + 2, 5)}`;
+            elements.push(React.createElement(tag, { key: `h-${index}` }, renderMarkdownInline(heading[2])));
+            index += 1;
+            continue;
+        }
+
+        if (/^-\s+/.test(line)) {
+            const items = [];
+            while (index < lines.length && /^-\s+/.test(lines[index])) {
+                items.push(React.createElement("li", { key: `li-${index}` }, renderMarkdownInline(lines[index].replace(/^-\s+/, ""))));
+                index += 1;
+            }
+            elements.push(React.createElement("ul", { key: `ul-${index}` }, items));
+            continue;
+        }
+
+        const paragraphLines = [];
+        while (
+            index < lines.length &&
+            lines[index].trim() !== "" &&
+            !/^(#{1,3})\s+/.test(lines[index]) &&
+            !/^-\s+/.test(lines[index])
+        ) {
+            paragraphLines.push(lines[index]);
+            index += 1;
+        }
+
+        elements.push(React.createElement("p", { key: `p-${index}` }, joinMarkdownLines(paragraphLines)));
+    }
+
+    return React.createElement("div", { className: "markdown-body" }, elements);
+}
+
+function joinMarkdownLines(lines) {
+    return lines.flatMap((line, index) => {
+        const nodes = renderMarkdownInline(line);
+        return index === 0 ? nodes : [React.createElement("br", { key: `br-${index}` }), ...nodes];
     });
-
-    if (!response.ok) {
-        message.textContent = "削除に失敗しました。";
-        return;
-    }
-
-    await loadMaps();
 }
 
-function renderMaps(maps) {
-    if (maps.length === 0) {
-        mapsContainer.innerHTML = "<p class=\"meta\">登録済みの地図はありません。</p>";
-        return;
+function renderMarkdownInline(text) {
+    const nodes = [];
+    const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g;
+    let cursor = 0;
+    let match;
+
+    while ((match = pattern.exec(text)) !== null) {
+        if (match.index > cursor) {
+            nodes.push(text.slice(cursor, match.index));
+        }
+
+        const token = match[0];
+        const key = `${match.index}-${token}`;
+        if (token.startsWith("`")) {
+            nodes.push(React.createElement("code", { key }, token.slice(1, -1)));
+        } else if (token.startsWith("**")) {
+            nodes.push(React.createElement("strong", { key }, token.slice(2, -2)));
+        } else if (token.startsWith("*")) {
+            nodes.push(React.createElement("em", { key }, token.slice(1, -1)));
+        } else {
+            const link = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+            const href = safeMarkdownUrl(link?.[2] ?? "");
+            nodes.push(href
+                ? React.createElement("a", { key, href, target: "_blank", rel: "noopener noreferrer" }, link?.[1] ?? href)
+                : link?.[1] ?? token);
+        }
+
+        cursor = match.index + token.length;
     }
 
-    mapsContainer.innerHTML = "";
-
-    for (const map of maps) {
-        const card = document.createElement("article");
-        card.className = "card";
-        card.innerHTML = `
-            <div>
-                <h3>${escapeHtml(map.name)}</h3>
-                <p class="meta">ID: ${escapeHtml(map.id)}</p>
-            </div>
-            <p class="meta">座標: ${map.latitude.toFixed(6)}, ${map.longitude.toFixed(6)}</p>
-            <p class="meta">地域コード: ${map.areaCode}</p>
-            <p class="meta">${escapeHtml(map.description)}</p>
-            <div class="actions">
-                <button type="button" class="ghost" data-action="edit">編集</button>
-                <button type="button" class="ghost" data-action="delete">削除</button>
-            </div>
-        `;
-
-        card.querySelector("[data-action='edit']").addEventListener("click", () => editMap(map));
-        card.querySelector("[data-action='delete']").addEventListener("click", () => deleteMap(map.id));
-        mapsContainer.append(card);
+    if (cursor < text.length) {
+        nodes.push(text.slice(cursor));
     }
+
+    return nodes;
 }
 
-function editMap(map) {
-    fields.id.value = map.id;
-    fields.name.value = map.name;
-    fields.description.value = map.description;
-    fields.latitude.value = map.latitude;
-    fields.longitude.value = map.longitude;
-    fields.areaCode.value = map.areaCode;
-    message.textContent = "既存の地図を編集中です。";
-}
-
-function resetForm() {
-    fields.id.value = "";
-    fields.name.value = "";
-    fields.description.value = "イベント会場と常設ワールドを管理するサンプルスポット";
-    fields.latitude.value = "35.681236";
-    fields.longitude.value = "139.767125";
-    fields.areaCode.value = "13";
-    message.textContent = "";
+function safeMarkdownUrl(value) {
+    const trimmed = value.trim();
+    return /^https?:\/\//i.test(trimmed) ? trimmed : null;
 }
 
 function escapeHtml(value) {
-    return value.replace(/[&<>"']/g, (character) => ({
+    return String(value ?? "").replace(/[&<>"']/g, (character) => ({
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
@@ -146,3 +1285,5 @@ function escapeHtml(value) {
         "'": "&#039;"
     }[character]));
 }
+
+createRoot(document.querySelector("#root")).render(React.createElement(App));

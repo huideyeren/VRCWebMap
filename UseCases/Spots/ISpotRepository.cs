@@ -23,12 +23,20 @@ public interface ISpotRepository
     bool TryGetWorld(Guid id, [NotNullWhen(true)] out VRChatWorld? world);
 
     /// <summary>
-    /// スポットに紐づく飲食店一覧を取得します。
+    /// スポットに紐づく場所情報一覧を取得します。
     /// </summary>
-    /// <returns>飲食店一覧です。</returns>
-    Restaurant[] ListRestaurants();
+    /// <returns>場所情報一覧です。</returns>
+    PlaceInfo[] ListPlaceInfos();
 
-    bool TryGetRestaurant(Guid id, [NotNullWhen(true)] out Restaurant? restaurant);
+    bool TryGetPlaceInfo(Guid id, [NotNullWhen(true)] out PlaceInfo? placeInfo);
+
+    /// <summary>
+    /// スポットに紐づく Web サイト情報一覧を取得します。
+    /// </summary>
+    /// <returns>Web サイト情報一覧です。</returns>
+    WebLink[] ListWebLinks();
+
+    bool TryGetWebLink(Guid id, [NotNullWhen(true)] out WebLink? webLink);
 
     /// <summary>
     /// スポットに紐づくコメント一覧を取得します。
@@ -47,12 +55,20 @@ public interface ISpotRepository
     bool DeleteWorld(Guid id);
 
     /// <summary>
-    /// 飲食店情報を追加または更新します。
+    /// 場所情報を追加または更新します。
     /// </summary>
-    /// <param name="restaurant">保存する飲食店情報です。</param>
-    void UpsertRestaurant(Restaurant restaurant);
+    /// <param name="placeInfo">保存する場所情報です。</param>
+    void UpsertPlaceInfo(PlaceInfo placeInfo);
 
-    bool DeleteRestaurant(Guid id);
+    bool DeletePlaceInfo(Guid id);
+
+    /// <summary>
+    /// Web サイト情報を追加または更新します。
+    /// </summary>
+    /// <param name="webLink">保存する Web サイト情報です。</param>
+    void UpsertWebLink(WebLink webLink);
+
+    bool DeleteWebLink(Guid id);
 
     /// <summary>
     /// コメントを追加または更新します。

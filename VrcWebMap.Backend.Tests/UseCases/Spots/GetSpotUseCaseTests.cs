@@ -21,7 +21,8 @@ public sealed class GetSpotUseCaseTests
         Assert.NotNull(result.Value);
         Assert.Equal(spot, result.Value.Spot);
         Assert.Empty(result.Value.VRChatWorlds);
-        Assert.Empty(result.Value.Restaurants);
+        Assert.Empty(result.Value.PlaceInfos);
+        Assert.Empty(result.Value.WebLinks);
         Assert.Empty(result.Value.Comments);
     }
 
@@ -43,26 +44,26 @@ public sealed class GetSpotUseCaseTests
             PC: true,
             Android: false,
             IOS: false);
-        var restaurant = new Restaurant(
+        var placeInfo = new PlaceInfo(
             Guid.NewGuid(),
             spot.Id,
             "owner-user",
             "飲食店",
             "住所",
-            Url: null,
-            GurunaviUrl: null,
-            TabelogUrl: null,
-            RettyUrl: null,
-            XUrl: null,
-            InstagramUrl: null,
-            OpenTime: new TimeOnly(11, 0),
-            CloseTime: new TimeOnly(22, 0),
-            ClosedOn: "不定休");
+            BusinessInformation: "- 昼: 11:00-14:00\n- 夜: 17:00-22:00\n- 定休日: 不定休");
+        var webLink = new WebLink(
+            Guid.NewGuid(),
+            spot.Id,
+            "owner-user",
+            "公式サイト",
+            new Uri("https://example.com"));
         var comment = new Comment(Guid.NewGuid(), spot.Id, "owner-user", "コメント");
         repository.UpsertWorld(world);
-        repository.UpsertRestaurant(restaurant);
+        repository.UpsertPlaceInfo(placeInfo);
+        repository.UpsertWebLink(webLink);
         repository.UpsertComment(comment);
         repository.UpsertWorld(world with { Id = Guid.NewGuid(), SpotId = otherSpot.Id });
+        repository.UpsertWebLink(webLink with { Id = Guid.NewGuid(), SpotId = otherSpot.Id });
         var useCase = new GetSpotUseCase(repository);
 
         var result = await useCase.ExecuteAsync(new GetSpot.Request(spot.Id));
@@ -71,7 +72,8 @@ public sealed class GetSpotUseCaseTests
         Assert.NotNull(result.Value);
         Assert.Equal(spot, result.Value.Spot);
         Assert.Equal([world], result.Value.VRChatWorlds);
-        Assert.Equal([restaurant], result.Value.Restaurants);
+        Assert.Equal([placeInfo], result.Value.PlaceInfos);
+        Assert.Equal([webLink], result.Value.WebLinks);
         Assert.Equal([comment], result.Value.Comments);
     }
 

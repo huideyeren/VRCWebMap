@@ -18,11 +18,13 @@ public static class GetSpot
     /// </summary>
     /// <param name="Spot">取得したスポットです。</param>
     /// <param name="VRChatWorlds">スポットに紐づく VRChat ワールド情報です。</param>
-    /// <param name="Restaurants">スポットに紐づく飲食店情報です。</param>
+    /// <param name="PlaceInfos">スポットに紐づく場所情報です。</param>
+    /// <param name="WebLinks">スポットに紐づく Web サイト情報です。</param>
     /// <param name="Comments">スポットに紐づくコメントです。</param>
     public sealed record Response(
         Spot Spot,
         VRChatWorld[] VRChatWorlds,
-        Restaurant[] Restaurants,
+        PlaceInfo[] PlaceInfos,
+        WebLink[] WebLinks,
         Comment[] Comments);
 }

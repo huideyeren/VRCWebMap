@@ -4,10 +4,11 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.Contracts.Portal;
-using VrcWebMap.Backend.Contracts.Restaurants;
+using VrcWebMap.Backend.Contracts.PlaceInfos;
 using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Contracts.Users;
 using VrcWebMap.Backend.Contracts.VRChatWorlds;
+using VrcWebMap.Backend.Contracts.WebLinks;
 using VrcWebMap.Backend.Endpoints.Web;
 using VrcWebMap.Backend.Options;
 using VrcWebMap.Backend.Serialization;
@@ -15,10 +16,11 @@ using VrcWebMap.Backend.Services;
 using VrcWebMap.Backend.Stores;
 using VrcWebMap.Backend.UseCases.Comments;
 using VrcWebMap.Backend.UseCases.Portal;
-using VrcWebMap.Backend.UseCases.Restaurants;
+using VrcWebMap.Backend.UseCases.PlaceInfos;
 using VrcWebMap.Backend.UseCases.Spots;
 using VrcWebMap.Backend.UseCases.Users;
 using VrcWebMap.Backend.UseCases.VRChatWorlds;
+using VrcWebMap.Backend.UseCases.WebLinks;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -28,6 +30,10 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 builder.Services.Configure<DiscordOptions>(builder.Configuration.GetSection("Discord"));
 builder.Services.AddHttpClient<DiscordApiClient>();
+builder.Services.AddHttpClient<IOpenGraphPreviewProvider, OpenGraphPreviewClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -71,6 +77,26 @@ if (string.Equals(databaseProvider, "PostgreSQL", StringComparison.OrdinalIgnore
     db.Database.EnsureCreated();
 }
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.ContentSecurityPolicy =
+        "default-src 'self'; " +
+        "base-uri 'self'; " +
+        "object-src 'none'; " +
+        "frame-ancestors 'none'; " +
+        "style-src 'self' 'unsafe-inline' https://unpkg.com; " +
+        "script-src 'self' https://unpkg.com https://esm.sh; " +
+        "script-src-elem 'self' https://unpkg.com https://esm.sh; " +
+        "connect-src 'self' https://esm.sh; " +
+        "img-src 'self' data: https:; " +
+        "font-src 'self' data:; " +
+        "form-action 'self'; " +
+        "upgrade-insecure-requests";
+    context.Response.Headers.XContentTypeOptions = "nosniff";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    await next();
+});
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthentication();
@@ -97,9 +123,9 @@ static void AddUseCases(IServiceCollection services)
     services.AddScoped<IUseCase<DeleteComment.Request, DeleteComment.Response>, DeleteCommentUseCase>();
     services.AddScoped<IUseCase<UpdateComment.Request, UpdateComment.Response>, UpdateCommentUseCase>();
     services.AddScoped<IUseCase<GetWorldData.Request, GetWorldData.Response>, GetWorldDataUseCase>();
-    services.AddScoped<IUseCase<CreateRestaurant.Request, CreateRestaurant.Response>, CreateRestaurantUseCase>();
-    services.AddScoped<IUseCase<DeleteRestaurant.Request, DeleteRestaurant.Response>, DeleteRestaurantUseCase>();
-    services.AddScoped<IUseCase<UpdateRestaurant.Request, UpdateRestaurant.Response>, UpdateRestaurantUseCase>();
+    services.AddScoped<IUseCase<CreatePlaceInfo.Request, CreatePlaceInfo.Response>, CreatePlaceInfoUseCase>();
+    services.AddScoped<IUseCase<DeletePlaceInfo.Request, DeletePlaceInfo.Response>, DeletePlaceInfoUseCase>();
+    services.AddScoped<IUseCase<UpdatePlaceInfo.Request, UpdatePlaceInfo.Response>, UpdatePlaceInfoUseCase>();
     services.AddScoped<IUseCase<CreateSpot.Request, CreateSpot.Response>, CreateSpotUseCase>();
     services.AddScoped<IUseCase<DeleteSpot.Request, DeleteSpot.Response>, DeleteSpotUseCase>();
     services.AddScoped<IUseCase<GetSpot.Request, GetSpot.Response>, GetSpotUseCase>();
@@ -109,4 +135,8 @@ static void AddUseCases(IServiceCollection services)
     services.AddScoped<IUseCase<CreateVRChatWorld.Request, CreateVRChatWorld.Response>, CreateVRChatWorldUseCase>();
     services.AddScoped<IUseCase<DeleteVRChatWorld.Request, DeleteVRChatWorld.Response>, DeleteVRChatWorldUseCase>();
     services.AddScoped<IUseCase<UpdateVRChatWorld.Request, UpdateVRChatWorld.Response>, UpdateVRChatWorldUseCase>();
+    services.AddScoped<IUseCase<CreateWebLink.Request, CreateWebLink.Response>, CreateWebLinkUseCase>();
+    services.AddScoped<IUseCase<DeleteWebLink.Request, DeleteWebLink.Response>, DeleteWebLinkUseCase>();
+    services.AddScoped<IUseCase<GetWebLinkPreview.Request, GetWebLinkPreview.Response>, GetWebLinkPreviewUseCase>();
+    services.AddScoped<IUseCase<UpdateWebLink.Request, UpdateWebLink.Response>, UpdateWebLinkUseCase>();
 }

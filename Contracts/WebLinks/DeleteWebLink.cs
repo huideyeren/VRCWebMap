@@ -1,6 +1,6 @@
-namespace VrcWebMap.Backend.Contracts.Restaurants;
+namespace VrcWebMap.Backend.Contracts.WebLinks;
 
-public static class DeleteRestaurant
+public static class DeleteWebLink
 {
     public sealed record Request(Guid Id, string ActorUserId, bool ActorIsAdmin);
 

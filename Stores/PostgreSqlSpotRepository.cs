@@ -28,16 +28,28 @@ public sealed class PostgreSqlSpotRepository(AppDbContext db) : ISpotRepository
         return world is not null;
     }
 
-    public Restaurant[] ListRestaurants() =>
-        db.Restaurants
+    public PlaceInfo[] ListPlaceInfos() =>
+        db.PlaceInfos
             .AsNoTracking()
-            .OrderBy(restaurant => restaurant.Name)
+            .OrderBy(placeInfo => placeInfo.Name)
             .ToArray();
 
-    public bool TryGetRestaurant(Guid id, [NotNullWhen(true)] out Restaurant? restaurant)
+    public bool TryGetPlaceInfo(Guid id, [NotNullWhen(true)] out PlaceInfo? placeInfo)
     {
-        restaurant = db.Restaurants.AsNoTracking().FirstOrDefault(candidate => candidate.Id == id);
-        return restaurant is not null;
+        placeInfo = db.PlaceInfos.AsNoTracking().FirstOrDefault(candidate => candidate.Id == id);
+        return placeInfo is not null;
+    }
+
+    public WebLink[] ListWebLinks() =>
+        db.WebLinks
+            .AsNoTracking()
+            .OrderBy(webLink => webLink.SiteName)
+            .ToArray();
+
+    public bool TryGetWebLink(Guid id, [NotNullWhen(true)] out WebLink? webLink)
+    {
+        webLink = db.WebLinks.AsNoTracking().FirstOrDefault(candidate => candidate.Id == id);
+        return webLink is not null;
     }
 
     public Comment[] ListComments() =>
@@ -62,14 +74,24 @@ public sealed class PostgreSqlSpotRepository(AppDbContext db) : ISpotRepository
         return DeleteEntity(db.VRChatWorlds, id);
     }
 
-    public void UpsertRestaurant(Restaurant restaurant)
+    public void UpsertPlaceInfo(PlaceInfo placeInfo)
     {
-        UpsertEntity(restaurant);
+        UpsertEntity(placeInfo);
     }
 
-    public bool DeleteRestaurant(Guid id)
+    public bool DeletePlaceInfo(Guid id)
     {
-        return DeleteEntity(db.Restaurants, id);
+        return DeleteEntity(db.PlaceInfos, id);
+    }
+
+    public void UpsertWebLink(WebLink webLink)
+    {
+        UpsertEntity(webLink);
+    }
+
+    public bool DeleteWebLink(Guid id)
+    {
+        return DeleteEntity(db.WebLinks, id);
     }
 
     public void UpsertComment(Comment comment)
@@ -103,7 +125,8 @@ public sealed class PostgreSqlSpotRepository(AppDbContext db) : ISpotRepository
     public void DeleteRelatedData(Guid spotId)
     {
         db.VRChatWorlds.Where(world => world.SpotId == spotId).ExecuteDelete();
-        db.Restaurants.Where(restaurant => restaurant.SpotId == spotId).ExecuteDelete();
+        db.PlaceInfos.Where(placeInfo => placeInfo.SpotId == spotId).ExecuteDelete();
+        db.WebLinks.Where(webLink => webLink.SpotId == spotId).ExecuteDelete();
         db.Comments.Where(comment => comment.SpotId == spotId).ExecuteDelete();
     }
 

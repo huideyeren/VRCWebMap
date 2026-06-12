@@ -85,7 +85,7 @@ Content-Type: application/json
 
 ###
 
-POST {{VrcWebMap_Backend_HostAddress}}/restaurants/create
+POST {{VrcWebMap_Backend_HostAddress}}/place-infos/create
 Content-Type: application/json
 
 {
@@ -93,15 +93,19 @@ Content-Type: application/json
   "registeredByUserId": "discord-user-id",
   "name": "サンプル飲食店",
   "address": "東京都千代田区",
-  "url": null,
-  "gurunaviUrl": null,
-  "tabelogUrl": null,
-  "rettyUrl": null,
-  "xUrl": null,
-  "instagramUrl": null,
-  "openTime": "11:00:00",
-  "closeTime": "22:00:00",
-  "closedOn": "不定休"
+  "businessInformation": "- 昼: 11:00-14:00\n- 夜: 17:00-22:00\n- 定休日: 不定休"
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/web-links/create
+Content-Type: application/json
+
+{
+  "spotId": "00000000-0000-0000-0000-000000000000",
+  "registeredByUserId": "discord-user-id",
+  "siteName": "公式サイト",
+  "url": "https://example.com"
 }
 
 ###

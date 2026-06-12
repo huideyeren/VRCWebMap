@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Options;
 using VrcWebMap.Backend.Contracts.Users;
+using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.Options;
 using VrcWebMap.Backend.Services;
 using VrcWebMap.Backend.UseCases.Users;
@@ -21,11 +22,18 @@ public static class DiscordAuthEndpoints
     public static IEndpointRouteBuilder MapDiscordAuth(this IEndpointRouteBuilder endpoints)
     {
         Delegate logoutHandler = (HttpContext httpContext) => LogoutAsync(httpContext);
+        var environment = endpoints.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
 
         endpoints.MapGet("/auth/discord/login", LoginAsync).WithName("DiscordLogin");
         endpoints.MapGet("/auth/discord/callback", CallbackAsync).WithName("DiscordCallback");
         endpoints.MapPost("/auth/logout", logoutHandler).WithName("Logout");
         endpoints.MapGet("/auth/me", Me).WithName("CurrentUser");
+
+        if (environment.IsDevelopment())
+        {
+            endpoints.MapGet("/auth/dev/users", DevelopmentUsers).WithName("DevelopmentUsers");
+            endpoints.MapGet("/auth/dev/login/{userKind}", DevelopmentLoginAsync).WithName("DevelopmentLogin");
+        }
 
         return endpoints;
     }
@@ -112,29 +120,74 @@ public static class DiscordAuthEndpoints
                 : Results.BadRequest(result.Error?.Message);
         }
 
-        var claims = new List<Claim>
+        await SignInAsync(httpContext, result.Value!.User);
+
+        return Results.Redirect("/");
+    }
+
+    private static AuthSession.DevelopmentUserResponse[] DevelopmentUsers() =>
+    [
+        new(
+            UserId: "dev-admin-user",
+            Username: "dev-admin",
+            DisplayName: "開発用マップ管理者",
+            IsAdmin: true,
+            LoginUrl: "/auth/dev/login/admin"),
+        new(
+            UserId: "dev-general-user",
+            Username: "dev-user",
+            DisplayName: "開発用一般ユーザー",
+            IsAdmin: false,
+            LoginUrl: "/auth/dev/login/user")
+    ];
+
+    private static async Task<IResult> DevelopmentLoginAsync(
+        HttpContext httpContext,
+        string userKind,
+        IOptions<DiscordOptions> options,
+        IUseCase<RegisterDiscordUser.Request, RegisterDiscordUser.Response> registerUser,
+        CancellationToken cancellationToken)
+    {
+        var sampleUser = userKind switch
         {
-            new(ClaimTypes.NameIdentifier, result.Value!.User.DiscordUserId),
-            new(ClaimTypes.Name, result.Value.User.GlobalName ?? result.Value.User.Username),
-            new("discord_user_id", result.Value.User.DiscordUserId),
-            new("discord_username", result.Value.User.Username)
+            "admin" => new DevelopmentSampleUser(
+                DiscordUserId: "dev-admin-user",
+                Username: "dev-admin",
+                GlobalName: "開発用マップ管理者",
+                IsAdmin: true),
+            "user" => new DevelopmentSampleUser(
+                DiscordUserId: "dev-general-user",
+                Username: "dev-user",
+                GlobalName: "開発用一般ユーザー",
+                IsAdmin: false),
+            _ => null
         };
 
-        if (result.Value.User.IsAdmin)
+        if (sampleUser is null)
         {
-            claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+            return Results.NotFound();
         }
 
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        await httpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(identity),
-            new AuthenticationProperties
-            {
-                IsPersistent = true,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(14)
-            });
+        var requiredGuildId = string.IsNullOrWhiteSpace(options.Value.RequiredGuildId)
+            ? "development-guild"
+            : options.Value.RequiredGuildId;
+        var result = await registerUser.ExecuteAsync(
+            new RegisterDiscordUser.Request(
+                sampleUser.DiscordUserId,
+                sampleUser.Username,
+                sampleUser.GlobalName,
+                AvatarHash: null,
+                requiredGuildId,
+                IsRequiredGuildMember: true,
+                sampleUser.IsAdmin),
+            cancellationToken);
 
+        if (result.IsFailure)
+        {
+            return Results.BadRequest(result.Error?.Message);
+        }
+
+        await SignInAsync(httpContext, result.Value!.User);
         return Results.Redirect("/");
     }
 
@@ -156,6 +209,32 @@ public static class DiscordAuthEndpoints
             user.FindFirstValue("discord_username") ?? string.Empty,
             user.Identity.Name,
             user.IsInRole("Admin")));
+    }
+
+    private static async Task SignInAsync(HttpContext httpContext, DiscordUser user)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.DiscordUserId),
+            new(ClaimTypes.Name, user.GlobalName ?? user.Username),
+            new("discord_user_id", user.DiscordUserId),
+            new("discord_username", user.Username)
+        };
+
+        if (user.IsAdmin)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+        }
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        await httpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identity),
+            new AuthenticationProperties
+            {
+                IsPersistent = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(14)
+            });
     }
 
     private static bool IsConfigured(DiscordOptions options) =>
@@ -182,4 +261,10 @@ public static class DiscordAuthEndpoints
             return [];
         }
     }
+
+    private sealed record DevelopmentSampleUser(
+        string DiscordUserId,
+        string Username,
+        string GlobalName,
+        bool IsAdmin);
 }

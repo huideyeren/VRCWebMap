@@ -8,5 +8,12 @@ public static class AuthSession
         string? DisplayName,
         bool IsAdmin);
 
+    public sealed record DevelopmentUserResponse(
+        string UserId,
+        string Username,
+        string DisplayName,
+        bool IsAdmin,
+        string LoginUrl);
+
     public sealed record LogoutResponse(bool LoggedOut);
 }

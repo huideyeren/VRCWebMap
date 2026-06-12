@@ -58,9 +58,7 @@ public static class GetWorldData
         [property: JsonPropertyName("Platform")]
         Platform Platform,
         [property: JsonPropertyName("ReleaseStatus")]
-        string ReleaseStatus,
-        [property: JsonPropertyName("WorldPageUrl")]
-        Uri WorldPageUrl);
+        string ReleaseStatus);
 
     /// <summary>
     /// VRChat ワールドの対応プラットフォームです。

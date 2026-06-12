@@ -35,7 +35,8 @@ public sealed class GetSpotUseCase(ISpotRepository spots)
         var response = new GetSpot.Response(
             spot,
             spots.ListWorlds().Where(world => world.SpotId == spot.Id).ToArray(),
-            spots.ListRestaurants().Where(restaurant => restaurant.SpotId == spot.Id).ToArray(),
+            spots.ListPlaceInfos().Where(placeInfo => placeInfo.SpotId == spot.Id).ToArray(),
+            spots.ListWebLinks().Where(webLink => webLink.SpotId == spot.Id).ToArray(),
             spots.ListComments().Where(comment => comment.SpotId == spot.Id).ToArray());
         return Task.FromResult(KawaResult<GetSpot.Response>.Success(response));
     }

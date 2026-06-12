@@ -3,59 +3,15 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Kawa.Web Map Manager</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; style-src 'self' 'unsafe-inline' https://unpkg.com; script-src 'self' https://unpkg.com https://esm.sh; script-src-elem 'self' https://unpkg.com https://esm.sh; connect-src 'self' https://esm.sh; img-src 'self' data: https:; font-src 'self' data:; form-action 'self'; upgrade-insecure-requests">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>VRC Web Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-<main class="shell">
-    <section class="hero">
-        <p class="eyebrow">Kawa.Web prototype</p>
-        <h1>地図管理アプリ</h1>
-        <p class="lead">VRChat ワールドやイベント会場の地図情報を管理するための試作用画面です。</p>
-    </section>
-
-    <section class="panel editor">
-        <h2>地図を登録</h2>
-        <form id="map-form">
-            <input type="hidden" id="map-id">
-            <label>
-                地図名
-                <input id="name" name="name" required maxlength="120" placeholder="例: イベント会場マップ">
-            </label>
-            <label>
-                説明
-                <textarea id="description" name="description" rows="3" required placeholder="Markdown を想定した説明文"></textarea>
-            </label>
-            <div class="grid">
-                <label>
-                    緯度
-                    <input id="latitude" name="latitude" type="number" step="0.000001" min="-90" max="90" required>
-                </label>
-                <label>
-                    経度
-                    <input id="longitude" name="longitude" type="number" step="0.000001" min="-180" max="180" required>
-                </label>
-                <label>
-                    都道府県/地域コード
-                    <input id="area-code" name="areaCode" type="number" min="1" required>
-                </label>
-            </div>
-            <div class="actions">
-                <button type="submit">保存</button>
-                <button type="button" class="ghost" id="reset-button">新規入力</button>
-            </div>
-            <p id="message" class="message" role="status"></p>
-        </form>
-    </section>
-
-    <section class="panel">
-        <div class="section-title">
-            <h2>登録済み地図</h2>
-            <button type="button" class="ghost" id="reload-button">再読み込み</button>
-        </div>
-        <div id="maps" class="cards"></div>
-    </section>
-</main>
+<div id="root"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="/app.js" type="module"></script>
 </body>
 </html>

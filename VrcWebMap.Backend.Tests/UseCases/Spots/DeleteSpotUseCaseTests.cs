@@ -54,4 +54,26 @@ public sealed class DeleteSpotUseCaseTests
         Assert.Equal(KawaErrorKind.Forbidden, result.Error.Kind);
         Assert.True(repository.Exists(spot.Id));
     }
+
+    [Fact]
+    public async Task ExecuteAsync_RelatedDataExists_ReturnsConflict()
+    {
+        var spot = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
+        var repository = new FakeSpotRepository(spot);
+        repository.UpsertWebLink(new WebLink(
+            Guid.NewGuid(),
+            spot.Id,
+            "owner-user",
+            "公式サイト",
+            new Uri("https://example.com")));
+        var useCase = new DeleteSpotUseCase(repository);
+
+        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id, "owner-user", ActorIsAdmin: false));
+
+        Assert.True(result.IsFailure);
+        Assert.NotNull(result.Error);
+        Assert.Equal(KawaErrorKind.Conflict, result.Error.Kind);
+        Assert.True(repository.Exists(spot.Id));
+        Assert.DoesNotContain(spot.Id, repository.DeletedSpotIds);
+    }
 }

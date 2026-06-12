@@ -81,8 +81,7 @@ public sealed class GetWorldDataUseCase(ISpotRepository spots)
             world.Capacity,
             world.Description,
             new GetWorldData.Platform(world.PC, world.Android, world.IOS),
-            world.ReleaseStatus,
-            world.WorldPageUrl);
+            world.ReleaseStatus);
 
     private static string CategoryDisplayName(AreaCategory category) =>
         category switch

@@ -1,0 +1,42 @@
+using Kawa.Abstractions;
+using VrcWebMap.Backend.Contracts.PlaceInfos;
+using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Spots;
+
+namespace VrcWebMap.Backend.UseCases.PlaceInfos;
+
+[KawaUseCase("place-infos.update", Summary = "Update place info", Version = "v1", Tags = new[] { "PlaceInfos" })]
+public sealed class UpdatePlaceInfoUseCase(ISpotRepository spots)
+    : IUseCase<UpdatePlaceInfo.Request, UpdatePlaceInfo.Response>
+{
+    public Task<KawaResult<UpdatePlaceInfo.Response>> ExecuteAsync(UpdatePlaceInfo.Request request, CancellationToken cancellationToken = default)
+    {
+        if (!spots.TryGetPlaceInfo(request.Id, out var existing))
+        {
+            return Task.FromResult(KawaResult<UpdatePlaceInfo.Response>.Failure(new KawaError(KawaErrorKind.NotFound, "場所情報が見つかりません。")));
+        }
+
+        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, request.ActorUserId, request.ActorIsAdmin))
+        {
+            return Task.FromResult(KawaResult<UpdatePlaceInfo.Response>.Failure(new KawaError(KawaErrorKind.Forbidden, "場所情報を変更する権限がありません。")));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name) ||
+            string.IsNullOrWhiteSpace(request.Address) ||
+            string.IsNullOrWhiteSpace(request.BusinessInformation))
+        {
+            return Task.FromResult(KawaResult<UpdatePlaceInfo.Response>.Failure(new KawaError(KawaErrorKind.Validation, "場所名、所在地、営業情報は必須です。")));
+        }
+
+        var placeInfo = new PlaceInfo(
+            existing.Id,
+            existing.SpotId,
+            existing.RegisteredByUserId,
+            request.Name.Trim(),
+            request.Address.Trim(),
+            request.BusinessInformation.Trim());
+
+        spots.UpsertPlaceInfo(placeInfo);
+        return Task.FromResult(KawaResult<UpdatePlaceInfo.Response>.Success(new UpdatePlaceInfo.Response(placeInfo)));
+    }
+}

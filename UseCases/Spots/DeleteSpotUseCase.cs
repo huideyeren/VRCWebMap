@@ -11,6 +11,7 @@ namespace VrcWebMap.Backend.UseCases.Spots;
     Tags = new[] { "Spot Management" })]
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "スポットが見つかりません。")]
 [KawaErrorResponse(KawaErrorKind.Forbidden, Description = "スポットを削除する権限がありません。")]
+[KawaErrorResponse(KawaErrorKind.Conflict, Description = "スポットに関連データがあるため削除できません。")]
 /// <summary>
 /// スポットを削除するユースケースです。
 /// </summary>
@@ -39,10 +40,21 @@ public sealed class DeleteSpotUseCase(ISpotRepository spots)
             return Task.FromResult(KawaResult<DeleteSpot.Response>.Failure(error));
         }
 
-        spots.DeleteRelatedData(request.Id);
+        if (HasRelatedData(request.Id))
+        {
+            var error = new KawaError(KawaErrorKind.Conflict, "スポットに関連データがあるため削除できません。先に関連データを削除してください。");
+            return Task.FromResult(KawaResult<DeleteSpot.Response>.Failure(error));
+        }
+
         spots.Delete(request.Id);
 
         var response = new DeleteSpot.Response(request.Id);
         return Task.FromResult(KawaResult<DeleteSpot.Response>.Success(response));
     }
+
+    private bool HasRelatedData(Guid spotId) =>
+        spots.ListWorlds().Any(world => world.SpotId == spotId) ||
+        spots.ListPlaceInfos().Any(placeInfo => placeInfo.SpotId == spotId) ||
+        spots.ListWebLinks().Any(webLink => webLink.SpotId == spotId) ||
+        spots.ListComments().Any(comment => comment.SpotId == spotId);
 }

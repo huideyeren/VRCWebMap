@@ -12,7 +12,8 @@ public sealed class InMemorySpotRepository : ISpotRepository
 {
     private readonly ConcurrentDictionary<Guid, Spot> spots = new();
     private readonly ConcurrentDictionary<Guid, VRChatWorld> worlds = new();
-    private readonly ConcurrentDictionary<Guid, Restaurant> restaurants = new();
+    private readonly ConcurrentDictionary<Guid, PlaceInfo> placeInfos = new();
+    private readonly ConcurrentDictionary<Guid, WebLink> webLinks = new();
     private readonly ConcurrentDictionary<Guid, Comment> comments = new();
 
     /// <summary>
@@ -58,11 +59,18 @@ public sealed class InMemorySpotRepository : ISpotRepository
         worlds.TryGetValue(id, out world);
 
     /// <inheritdoc />
-    public Restaurant[] ListRestaurants() => restaurants.Values.OrderBy(restaurant => restaurant.Name).ToArray();
+    public PlaceInfo[] ListPlaceInfos() => placeInfos.Values.OrderBy(placeInfo => placeInfo.Name).ToArray();
 
     /// <inheritdoc />
-    public bool TryGetRestaurant(Guid id, [NotNullWhen(true)] out Restaurant? restaurant) =>
-        restaurants.TryGetValue(id, out restaurant);
+    public bool TryGetPlaceInfo(Guid id, [NotNullWhen(true)] out PlaceInfo? placeInfo) =>
+        placeInfos.TryGetValue(id, out placeInfo);
+
+    /// <inheritdoc />
+    public WebLink[] ListWebLinks() => webLinks.Values.OrderBy(webLink => webLink.SiteName).ToArray();
+
+    /// <inheritdoc />
+    public bool TryGetWebLink(Guid id, [NotNullWhen(true)] out WebLink? webLink) =>
+        webLinks.TryGetValue(id, out webLink);
 
     /// <inheritdoc />
     public Comment[] ListComments() => comments.Values.OrderBy(comment => comment.Id).ToArray();
@@ -78,10 +86,16 @@ public sealed class InMemorySpotRepository : ISpotRepository
     public bool DeleteWorld(Guid id) => worlds.TryRemove(id, out _);
 
     /// <inheritdoc />
-    public void UpsertRestaurant(Restaurant restaurant) => restaurants[restaurant.Id] = restaurant;
+    public void UpsertPlaceInfo(PlaceInfo placeInfo) => placeInfos[placeInfo.Id] = placeInfo;
 
     /// <inheritdoc />
-    public bool DeleteRestaurant(Guid id) => restaurants.TryRemove(id, out _);
+    public bool DeletePlaceInfo(Guid id) => placeInfos.TryRemove(id, out _);
+
+    /// <inheritdoc />
+    public void UpsertWebLink(WebLink webLink) => webLinks[webLink.Id] = webLink;
+
+    /// <inheritdoc />
+    public bool DeleteWebLink(Guid id) => webLinks.TryRemove(id, out _);
 
     /// <inheritdoc />
     public void UpsertComment(Comment comment) => comments[comment.Id] = comment;
@@ -110,9 +124,14 @@ public sealed class InMemorySpotRepository : ISpotRepository
             worlds.TryRemove(world.Id, out _);
         }
 
-        foreach (var restaurant in restaurants.Values.Where(restaurant => restaurant.SpotId == spotId))
+        foreach (var placeInfo in placeInfos.Values.Where(placeInfo => placeInfo.SpotId == spotId))
         {
-            restaurants.TryRemove(restaurant.Id, out _);
+            placeInfos.TryRemove(placeInfo.Id, out _);
+        }
+
+        foreach (var webLink in webLinks.Values.Where(webLink => webLink.SpotId == spotId))
+        {
+            webLinks.TryRemove(webLink.Id, out _);
         }
 
         foreach (var comment in comments.Values.Where(comment => comment.SpotId == spotId))

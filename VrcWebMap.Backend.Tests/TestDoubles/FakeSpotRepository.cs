@@ -8,12 +8,14 @@ internal sealed class FakeSpotRepository : ISpotRepository
 {
     private readonly Dictionary<Guid, Spot> spots = [];
     private readonly Dictionary<Guid, VRChatWorld> worlds = [];
-    private readonly Dictionary<Guid, Restaurant> restaurants = [];
+    private readonly Dictionary<Guid, PlaceInfo> placeInfos = [];
+    private readonly Dictionary<Guid, WebLink> webLinks = [];
     private readonly Dictionary<Guid, Comment> comments = [];
 
     public List<Spot> SavedSpots { get; } = [];
     public List<VRChatWorld> SavedWorlds { get; } = [];
-    public List<Restaurant> SavedRestaurants { get; } = [];
+    public List<PlaceInfo> SavedPlaceInfos { get; } = [];
+    public List<WebLink> SavedWebLinks { get; } = [];
     public List<Comment> SavedComments { get; } = [];
 
     public List<Guid> DeletedSpotIds { get; } = [];
@@ -33,10 +35,15 @@ internal sealed class FakeSpotRepository : ISpotRepository
     public bool TryGetWorld(Guid id, [NotNullWhen(true)] out VRChatWorld? world) =>
         worlds.TryGetValue(id, out world);
 
-    public Restaurant[] ListRestaurants() => restaurants.Values.OrderBy(restaurant => restaurant.Name).ToArray();
+    public PlaceInfo[] ListPlaceInfos() => placeInfos.Values.OrderBy(placeInfo => placeInfo.Name).ToArray();
 
-    public bool TryGetRestaurant(Guid id, [NotNullWhen(true)] out Restaurant? restaurant) =>
-        restaurants.TryGetValue(id, out restaurant);
+    public bool TryGetPlaceInfo(Guid id, [NotNullWhen(true)] out PlaceInfo? placeInfo) =>
+        placeInfos.TryGetValue(id, out placeInfo);
+
+    public WebLink[] ListWebLinks() => webLinks.Values.OrderBy(webLink => webLink.SiteName).ToArray();
+
+    public bool TryGetWebLink(Guid id, [NotNullWhen(true)] out WebLink? webLink) =>
+        webLinks.TryGetValue(id, out webLink);
 
     public Comment[] ListComments() => comments.Values.OrderBy(comment => comment.Id).ToArray();
 
@@ -53,13 +60,21 @@ internal sealed class FakeSpotRepository : ISpotRepository
 
     public bool DeleteWorld(Guid id) => worlds.Remove(id);
 
-    public void UpsertRestaurant(Restaurant restaurant)
+    public void UpsertPlaceInfo(PlaceInfo placeInfo)
     {
-        restaurants[restaurant.Id] = restaurant;
-        SavedRestaurants.Add(restaurant);
+        placeInfos[placeInfo.Id] = placeInfo;
+        SavedPlaceInfos.Add(placeInfo);
     }
 
-    public bool DeleteRestaurant(Guid id) => restaurants.Remove(id);
+    public bool DeletePlaceInfo(Guid id) => placeInfos.Remove(id);
+
+    public void UpsertWebLink(WebLink webLink)
+    {
+        webLinks[webLink.Id] = webLink;
+        SavedWebLinks.Add(webLink);
+    }
+
+    public bool DeleteWebLink(Guid id) => webLinks.Remove(id);
 
     public void UpsertComment(Comment comment)
     {
@@ -93,9 +108,14 @@ internal sealed class FakeSpotRepository : ISpotRepository
             worlds.Remove(world.Id);
         }
 
-        foreach (var restaurant in restaurants.Values.Where(restaurant => restaurant.SpotId == spotId).ToArray())
+        foreach (var placeInfo in placeInfos.Values.Where(placeInfo => placeInfo.SpotId == spotId).ToArray())
         {
-            restaurants.Remove(restaurant.Id);
+            placeInfos.Remove(placeInfo.Id);
+        }
+
+        foreach (var webLink in webLinks.Values.Where(webLink => webLink.SpotId == spotId).ToArray())
+        {
+            webLinks.Remove(webLink.Id);
         }
 
         foreach (var comment in comments.Values.Where(comment => comment.SpotId == spotId).ToArray())
