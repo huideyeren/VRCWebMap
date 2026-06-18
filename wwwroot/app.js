@@ -3,31 +3,43 @@ import { createRoot } from "https://esm.sh/react-dom@19.1.1/client?pin=v135";
 
 const TokyoStation = [35.681236, 139.767125];
 const DefaultAreaCode = 13;
-const AnonymousUserId = "local-user";
 
 function App() {
     const mapElementRef = useRef(null);
     const mapRef = useRef(null);
     const markersRef = useRef(new Map());
     const pendingCenterRef = useRef(null);
+    const currentUserRef = useRef(null);
     const [spots, setSpots] = useState([]);
     const [selectedSpot, setSelectedSpot] = useState(null);
     const [selectedDetails, setSelectedDetails] = useState(null);
     const [draft, setDraft] = useState(null);
+    const [areas, setAreas] = useState([]);
+    const [screen, setScreen] = useState("map");
     const [currentUser, setCurrentUser] = useState(null);
+    const [developmentApp, setDevelopmentApp] = useState(null);
     const [developmentUsers, setDevelopmentUsers] = useState([]);
     const [message, setMessage] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [isDownloadingPortal, setIsDownloadingPortal] = useState(false);
     const spotCount = spots.length;
-    const actorUserId = currentUser?.discordUserId ?? AnonymousUserId;
-    const registrantName = currentUser?.displayName ?? currentUser?.username ?? AnonymousUserId;
+    const actorUserId = currentUser?.discordUserId;
+    const registrantName = currentUser?.displayName ?? currentUser?.username;
 
     useEffect(() => {
         loadCurrentUser().then(setCurrentUser).catch(() => setCurrentUser(null));
+        loadDevelopmentApp().then(setDevelopmentApp).catch(() => setDevelopmentApp(null));
         loadDevelopmentUsers().then(setDevelopmentUsers).catch(() => setDevelopmentUsers([]));
+        loadAreas().then(setAreas).catch(() => setAreas([]));
         loadInitialMapState().catch((error) => setMessage(error.message));
     }, []);
+
+    useEffect(() => {
+        currentUserRef.current = currentUser;
+        if (!currentUser?.isAdmin && screen === "admin") {
+            setScreen("map");
+        }
+    }, [currentUser, screen]);
 
     useEffect(() => {
         if (mapRef.current || !mapElementRef.current) {
@@ -45,6 +57,11 @@ function App() {
         }).addTo(map);
 
         map.on("contextmenu", (event) => {
+            if (!currentUserRef.current) {
+                setMessage("Spot の登録にはログインが必要です。");
+                return;
+            }
+
             const lat = roundCoordinate(event.latlng.lat);
             const lng = roundCoordinate(event.latlng.lng);
             clearLinkedSpotId();
@@ -90,6 +107,10 @@ function App() {
     }, [spots]);
 
     const panelTitle = useMemo(() => {
+        if (screen === "admin") {
+            return "管理用画面";
+        }
+
         if (draft) {
             return "Spot を登録";
         }
@@ -99,7 +120,7 @@ function App() {
         }
 
         return "Spot 詳細";
-    }, [draft, selectedSpot]);
+    }, [draft, screen, selectedSpot]);
 
     async function loadInitialMapState() {
         setMessage("");
@@ -131,9 +152,12 @@ function App() {
     async function selectSpot(spot, options = {}) {
         const shouldUpdateUrl = options.updateUrl ?? true;
         const shouldCenter = options.center ?? true;
+        const nextScreen = options.screen ?? "map";
         setSelectedSpot(spot);
+        setSelectedDetails(null);
         setDraft(null);
         setMessage("");
+        setScreen(nextScreen);
 
         if (shouldUpdateUrl) {
             setLinkedSpotId(spot.id);
@@ -227,6 +251,11 @@ function App() {
             return;
         }
 
+        if (!currentUser) {
+            setMessage("Spot の登録にはログインが必要です。");
+            return;
+        }
+
         setIsSaving(true);
         setMessage("");
 
@@ -249,6 +278,30 @@ function App() {
         } finally {
             setIsSaving(false);
         }
+    }
+
+    async function logout() {
+        setMessage("");
+
+        try {
+            await postJson("/auth/logout", {});
+            setCurrentUser(null);
+            setDraft(null);
+            setScreen("map");
+            setMessage("ログアウトしました。");
+        } catch (error) {
+            setMessage(error.message);
+        }
+    }
+
+    function openAdminScreen() {
+        if (!currentUser?.isAdmin) {
+            return;
+        }
+
+        setDraft(null);
+        setScreen("admin");
+        setMessage("");
     }
 
     async function downloadPortalData() {
@@ -283,7 +336,19 @@ function App() {
             ),
             React.createElement("div", { className: "menu-actions" },
                 currentUser
-                    ? React.createElement("span", { className: "user-chip" }, currentUser.displayName ?? currentUser.username)
+                    ? React.createElement(React.Fragment, null,
+                        React.createElement("span", { className: "user-chip" }, currentUser.displayName ?? currentUser.username),
+                        currentUser.isAdmin ? React.createElement("button", {
+                            type: "button",
+                            className: screen === "admin" ? "" : "secondary",
+                            onClick: openAdminScreen
+                        }, "管理用画面") : null,
+                        React.createElement("button", {
+                            type: "button",
+                            className: "secondary",
+                            onClick: logout
+                        }, "ログアウト")
+                    )
                     : React.createElement(React.Fragment, null,
                         React.createElement("a", { className: "menu-button", href: "/auth/discord/login" }, "Discord ログイン"),
                         developmentUsers.map((user) =>
@@ -294,6 +359,12 @@ function App() {
                             }, user.isAdmin ? "開発: 管理者" : "開発: 一般")
                         )
                     ),
+                developmentApp ? React.createElement("a", {
+                    className: "menu-button secondary",
+                    href: developmentApp.swaggerUrl,
+                    target: "_blank",
+                    rel: "noopener noreferrer"
+                }, "Swagger") : null,
                 React.createElement("button", {
                     type: "button",
                     className: "secondary",
@@ -314,12 +385,26 @@ function App() {
             React.createElement("header", { className: "panel-header" },
                 React.createElement("p", { className: "eyebrow" }, `${spotCount} spots`),
                 React.createElement("h2", null, panelTitle),
-                React.createElement("p", { className: "meta" }, currentUser ? `ログイン中: ${currentUser.displayName ?? currentUser.username}` : "未ログイン: local-user として登録します。")
+                React.createElement("p", { className: "meta" }, currentUser ? `ログイン中: ${currentUser.displayName ?? currentUser.username}` : "未ログイン: 書き込みにはログインが必要です。")
             ),
             React.createElement("div", { className: "panel-body" },
                 message ? React.createElement("p", { className: "notice", role: "status" }, message) : null,
-                draft ? React.createElement(SpotForm, {
+                screen === "admin" ? React.createElement(AdminScreen, {
+                    spots,
+                    selectedSpot,
+                    selectedDetails,
+                    areas,
+                    currentUser,
+                    onSelectSpot: (spot) => selectSpot(spot, { screen: "admin" }),
+                    onChanged: reloadAfterSpotMutation,
+                    onDeleted: clearDeletedSpot,
+                    onBack: () => setScreen("map"),
+                    onReload: refreshSpots,
+                    onMessage: setMessage
+                }) : null,
+                screen !== "admin" && draft ? React.createElement(SpotForm, {
                     draft,
+                    areas,
                     isSaving,
                     onChange: setDraft,
                     onSubmit: saveDraft,
@@ -328,9 +413,10 @@ function App() {
                         setMessage("");
                     }
                 }) : null,
-                !draft && selectedSpot ? React.createElement(SpotDetails, {
+                screen !== "admin" && !draft && selectedSpot ? React.createElement(SpotDetails, {
                     spot: selectedSpot,
                     details: selectedDetails,
+                    areas,
                     currentUser,
                     registeredByUserId: actorUserId,
                     registrantName,
@@ -339,15 +425,67 @@ function App() {
                     onSpotDeleted: clearDeletedSpot,
                     onMessage: setMessage
                 }) : null,
-                !draft && !selectedSpot ? React.createElement(EmptyState, { onReload: refreshSpots }) : null,
-                React.createElement(SpotList, { spots, selectedSpotId: selectedSpot?.id, onSelect: selectSpot })
+                screen !== "admin" && !draft && !selectedSpot ? React.createElement(EmptyState, { onReload: refreshSpots }) : null,
+                screen !== "admin" ? React.createElement(SpotList, { spots, selectedSpotId: selectedSpot?.id, onSelect: selectSpot }) : null
             )
         )
     );
 }
 
-function SpotForm({ draft, isSaving, onChange, onSubmit, onCancel, submitLabel = "Spot を登録" }) {
+function AdminScreen({ spots, selectedSpot, selectedDetails, areas, currentUser, onSelectSpot, onChanged, onDeleted, onBack, onReload, onMessage }) {
+    if (!currentUser?.isAdmin) {
+        return React.createElement("section", { className: "card" },
+            React.createElement("h3", null, "管理用画面"),
+            React.createElement("p", { className: "meta" }, "管理用画面を開くには管理者ログインが必要です。")
+        );
+    }
+
+    const worlds = selectedDetails?.vrChatWorlds ?? [];
+    const placeInfos = selectedDetails?.placeInfos ?? [];
+    const webLinks = selectedDetails?.webLinks ?? [];
+    const comments = selectedDetails?.comments ?? [];
+
+    return React.createElement("section", { className: "admin-screen" },
+        React.createElement("div", { className: "actions" },
+            React.createElement("button", { type: "button", className: "secondary", onClick: onBack }, "通常画面へ戻る"),
+            React.createElement("button", { type: "button", className: "secondary", onClick: onReload }, "Spot を再読み込み")
+        ),
+        React.createElement("div", { className: "admin-card" },
+            React.createElement("h4", null, "管理対象 Spot"),
+            spots.length === 0
+                ? React.createElement("p", { className: "meta" }, "登録済み Spot はありません。")
+                : React.createElement("div", { className: "related-list" }, spots.map((spot) =>
+                    React.createElement("button", {
+                        key: spot.id,
+                        type: "button",
+                        className: spot.id === selectedSpot?.id ? "" : "secondary",
+                        onClick: () => onSelectSpot(spot)
+                    }, `${spot.name} / ${formatAreaName(spot.areaCode, areas)}`)
+                ))
+        ),
+        selectedSpot
+            ? selectedDetails
+                ? React.createElement(AdminPanel, {
+                    spot: selectedDetails.spot,
+                    worlds,
+                    placeInfos,
+                    webLinks,
+                    comments,
+                    areas,
+                    actorUserId: currentUser.discordUserId,
+                    onChanged,
+                    onDeleted,
+                    onMessage
+                })
+                : React.createElement("p", { className: "meta" }, "Spot 詳細を読み込み中です。")
+            : React.createElement("p", { className: "meta" }, "編集する Spot を選択してください。")
+    );
+}
+
+function SpotForm({ draft, areas, isSaving, onChange, onSubmit, onCancel, submitLabel = "Spot を登録" }) {
     const update = (key) => (event) => onChange({ ...draft, [key]: event.target.value });
+    const selectedAreaCode = Number(draft.areaCode);
+    const hasSelectedArea = areas.some((area) => area.areaCode === selectedAreaCode);
 
     return React.createElement("form", { className: "card form-grid", onSubmit },
         React.createElement("label", null,
@@ -397,14 +535,17 @@ function SpotForm({ draft, isSaving, onChange, onSubmit, onCancel, submitLabel =
             )
         ),
         React.createElement("label", null,
-            "都道府県/地域コード",
-            React.createElement("input", {
-                type: "number",
-                min: "1",
+            "都道府県/地域",
+            React.createElement("select", {
                 value: draft.areaCode,
                 onChange: update("areaCode"),
                 required: true
-            })
+            },
+                !hasSelectedArea
+                    ? React.createElement("option", { value: draft.areaCode }, formatAreaName(draft.areaCode, areas))
+                    : null,
+                areas.map((area) => React.createElement("option", { key: area.areaCode, value: area.areaCode }, area.areaName))
+            )
         ),
         React.createElement("div", { className: "actions" },
             React.createElement("button", { type: "submit", disabled: isSaving }, isSaving ? "保存中..." : submitLabel),
@@ -413,7 +554,7 @@ function SpotForm({ draft, isSaving, onChange, onSubmit, onCancel, submitLabel =
     );
 }
 
-function SpotDetails({ spot, details, currentUser, registeredByUserId, registrantName, onCreated, onSpotUpdated, onSpotDeleted, onMessage }) {
+function SpotDetails({ spot, details, areas, currentUser, registeredByUserId, registrantName, onCreated, onSpotUpdated, onSpotDeleted, onMessage }) {
     const worlds = details?.vrChatWorlds ?? [];
     const placeInfos = details?.placeInfos ?? [];
     const webLinks = details?.webLinks ?? [];
@@ -423,14 +564,15 @@ function SpotDetails({ spot, details, currentUser, registeredByUserId, registran
         React.createElement("h3", null, spot.name),
         renderMarkdown(spot.description),
         React.createElement("p", { className: "meta" }, `座標: ${formatCoordinate(spot.latitude)}, ${formatCoordinate(spot.longitude)}`),
-        React.createElement("p", { className: "meta" }, `地域コード: ${spot.areaCode}`),
-        React.createElement(AddContentForms, { spot, registeredByUserId, registrantName, onCreated, onMessage }),
+        React.createElement("p", { className: "meta" }, `地域: ${formatAreaName(spot.areaCode, areas)}`),
+        currentUser ? React.createElement(AddContentForms, { spot, registeredByUserId, registrantName, onCreated, onMessage }) : React.createElement(LoginRequiredNotice),
         currentUser?.isAdmin ? React.createElement(AdminPanel, {
             spot,
             worlds,
             placeInfos,
             webLinks,
             comments,
+            areas,
             actorUserId: currentUser.discordUserId,
             onChanged: onSpotUpdated,
             onDeleted: onSpotDeleted,
@@ -440,6 +582,13 @@ function SpotDetails({ spot, details, currentUser, registeredByUserId, registran
         React.createElement(RelatedSection, { title: "Place Infos", items: placeInfos, render: renderPlaceInfo }),
         React.createElement(RelatedSection, { title: "Web Links", items: webLinks, render: renderWebLink }),
         React.createElement(RelatedSection, { title: "Comments", items: comments, render: renderComment })
+    );
+}
+
+function LoginRequiredNotice() {
+    return React.createElement("div", { className: "content-form" },
+        React.createElement("p", { className: "meta" }, "関連情報の追加にはログインが必要です。"),
+        React.createElement("a", { className: "menu-button", href: "/auth/discord/login" }, "Discord ログイン")
     );
 }
 
@@ -532,14 +681,14 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
     );
 }
 
-function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, actorUserId, onChanged, onDeleted, onMessage }) {
+function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, actorUserId, onChanged, onDeleted, onMessage }) {
     const actor = { actorUserId, actorIsAdmin: true };
 
     return React.createElement("section", { className: "admin-panel" },
         React.createElement("p", { className: "eyebrow" }, "Admin only"),
         React.createElement("h3", null, "管理者編集"),
         React.createElement("p", { className: "meta" }, "管理者として Spot と関連データを編集・削除できます。"),
-        React.createElement(AdminSpotEditor, { spot, actor, onChanged, onDeleted, onMessage }),
+        React.createElement(AdminSpotEditor, { spot, areas, actor, onChanged, onDeleted, onMessage }),
         React.createElement(AdminWorldSection, { items: worlds, actor, onChanged: () => onChanged(spot.id), onMessage }),
         React.createElement(AdminPlaceInfoSection, { items: placeInfos, actor, onChanged: () => onChanged(spot.id), onMessage }),
         React.createElement(AdminWebLinkSection, { items: webLinks, actor, onChanged: () => onChanged(spot.id), onMessage }),
@@ -547,7 +696,7 @@ function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, actorUserId,
     );
 }
 
-function AdminSpotEditor({ spot, actor, onChanged, onDeleted, onMessage }) {
+function AdminSpotEditor({ spot, areas, actor, onChanged, onDeleted, onMessage }) {
     const [draft, setDraft] = useState(createSpotDraft(spot));
     const [isSaving, setIsSaving] = useState(false);
 
@@ -602,6 +751,7 @@ function AdminSpotEditor({ spot, actor, onChanged, onDeleted, onMessage }) {
         React.createElement("h4", null, "Spot"),
         React.createElement(SpotForm, {
             draft,
+            areas,
             isSaving,
             onChange: setDraft,
             onSubmit: submit,
@@ -936,6 +1086,20 @@ async function loadDevelopmentUsers() {
     return response.json();
 }
 
+async function loadDevelopmentApp() {
+    const response = await fetch("/auth/dev/app");
+    if (!response.ok) {
+        return null;
+    }
+
+    return response.json();
+}
+
+async function loadAreas() {
+    const body = await postJson("/areas/list", {});
+    return unwrap(body).areas ?? [];
+}
+
 async function loadSpots() {
     const body = await postJson("/spots/list", {});
     return unwrap(body).spots ?? [];
@@ -1051,6 +1215,12 @@ function roundCoordinate(value) {
 
 function formatCoordinate(value) {
     return Number(value).toFixed(6);
+}
+
+function formatAreaName(areaCode, areas) {
+    const numericAreaCode = Number(areaCode);
+    const area = areas.find((item) => item.areaCode === numericAreaCode);
+    return area ? area.areaName : `未定義エリア (${numericAreaCode})`;
 }
 
 function getLinkedSpotId() {

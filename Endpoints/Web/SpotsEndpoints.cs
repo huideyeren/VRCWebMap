@@ -1,4 +1,5 @@
 using Kawa.Web;
+using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.UseCases.Spots;
 
 namespace VrcWebMap.Backend.Endpoints.Web;
@@ -15,11 +16,24 @@ public static class SpotsEndpoints
     /// <returns>登録後のエンドポイントルートビルダーです。</returns>
     public static IEndpointRouteBuilder MapSpots(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapKawaPost<ListSpotsUseCase>("/spots/list").WithName("ListSpots");
-        endpoints.MapKawaPost<GetSpotUseCase>("/spots/get").WithName("GetSpot");
-        endpoints.MapKawaPost<CreateSpotUseCase>("/spots/create").WithName("CreateSpot");
-        endpoints.MapKawaPost<UpdateSpotUseCase>("/spots/update").WithName("UpdateSpot");
-        endpoints.MapKawaPost<DeleteSpotUseCase>("/spots/delete").WithName("DeleteSpot");
+        endpoints.MapKawaPost<ListSpotsUseCase>("/spots/list")
+            .WithName("ListSpots")
+            .WithContractOpenApi<ListSpots.Request, ListSpots.Response>();
+        endpoints.MapKawaPost<GetSpotUseCase>("/spots/get")
+            .WithName("GetSpot")
+            .WithContractOpenApi<GetSpot.Request, GetSpot.Response>();
+        endpoints.MapKawaPost<CreateSpotUseCase>("/spots/create")
+            .WithName("CreateSpot")
+            .WithContractOpenApi<CreateSpot.Request, CreateSpot.Response>()
+            .RequireAuthorization();
+        endpoints.MapKawaPost<UpdateSpotUseCase>("/spots/update")
+            .WithName("UpdateSpot")
+            .WithContractOpenApi<UpdateSpot.Request, UpdateSpot.Response>()
+            .RequireAuthorization();
+        endpoints.MapKawaPost<DeleteSpotUseCase>("/spots/delete")
+            .WithName("DeleteSpot")
+            .WithContractOpenApi<DeleteSpot.Request, DeleteSpot.Response>()
+            .RequireAuthorization();
 
         return endpoints;
     }

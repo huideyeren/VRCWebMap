@@ -139,6 +139,7 @@ label {
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 10px;
+    align-items: center;
 }
 
 .menu-button,
@@ -159,6 +160,20 @@ label {
 
 .menu-button:hover {
     background: var(--accent-strong);
+}
+
+.menu-button.secondary {
+    color: var(--accent);
+    background: rgba(13, 112, 88, 0.1);
+}
+
+.menu-button.secondary:hover {
+    color: #fff;
+    background: var(--accent-strong);
+}
+
+.menu-actions button {
+    min-height: 42px;
 }
 
 .user-chip {
@@ -328,6 +343,11 @@ h1 {
     background:
         linear-gradient(135deg, rgba(163, 58, 36, 0.08), rgba(13, 112, 88, 0.07)),
         rgba(255, 249, 233, 0.76);
+}
+
+.admin-screen {
+    display: grid;
+    gap: 14px;
 }
 
 .admin-card {

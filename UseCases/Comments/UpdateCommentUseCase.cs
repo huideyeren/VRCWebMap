@@ -5,7 +5,14 @@ using VrcWebMap.Backend.UseCases.Spots;
 
 namespace VrcWebMap.Backend.UseCases.Comments;
 
-[KawaUseCase("comments.update", Summary = "Update comment", Version = "v1", Tags = new[] { "Comments" })]
+[KawaUseCase(
+    "comments.update",
+    Summary = "Update comment",
+    Description = "スポットに紐づくコメント本文を更新します。管理者またはコメント登録者本人のみ実行できます。",
+    Version = "v1",
+    Tags = new[] { "Comments" })]
+[KawaErrorResponse(KawaErrorKind.NotFound, Description = "コメントが見つかりません。")]
+[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "コメントを変更する権限がありません。")]
 public sealed class UpdateCommentUseCase(ISpotRepository spots)
     : IUseCase<UpdateComment.Request, UpdateComment.Response>
 {

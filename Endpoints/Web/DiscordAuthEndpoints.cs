@@ -24,15 +24,58 @@ public static class DiscordAuthEndpoints
         Delegate logoutHandler = (HttpContext httpContext) => LogoutAsync(httpContext);
         var environment = endpoints.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
 
-        endpoints.MapGet("/auth/discord/login", LoginAsync).WithName("DiscordLogin");
-        endpoints.MapGet("/auth/discord/callback", CallbackAsync).WithName("DiscordCallback");
-        endpoints.MapPost("/auth/logout", logoutHandler).WithName("Logout");
-        endpoints.MapGet("/auth/me", Me).WithName("CurrentUser");
+        endpoints.MapGet("/auth/discord/login", LoginAsync)
+            .WithName("DiscordLogin")
+            .WithTags("Authentication")
+            .WithSummary("Start Discord OAuth login")
+            .WithDescription("Discord OAuth の認可画面へ redirect します。Discord 設定が不足している場合は 503 ProblemDetails を返します。")
+            .Produces(StatusCodes.Status302Found)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+        endpoints.MapGet("/auth/discord/callback", CallbackAsync)
+            .WithName("DiscordCallback")
+            .WithTags("Authentication")
+            .WithSummary("Handle Discord OAuth callback")
+            .WithDescription("Discord OAuth code を検証し、対象 guild 参加と管理者ロールを server-side に確認して cookie session を作成します。")
+            .Produces(StatusCodes.Status302Found)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status502BadGateway)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+        endpoints.MapPost("/auth/logout", logoutHandler)
+            .WithName("Logout")
+            .WithTags("Authentication")
+            .WithSummary("Logout current user")
+            .WithDescription("現在の cookie session を破棄します。未ログインでも呼び出せます。")
+            .Produces<AuthSession.LogoutResponse>(StatusCodes.Status200OK);
+        endpoints.MapGet("/auth/me", Me)
+            .WithName("CurrentUser")
+            .WithTags("Authentication")
+            .WithSummary("Get current user")
+            .WithDescription("現在の cookie session に紐づく Discord ユーザー情報を返します。未ログインの場合は 401 を返します。")
+            .Produces<AuthSession.CurrentUserResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized);
 
         if (environment.IsDevelopment())
         {
-            endpoints.MapGet("/auth/dev/users", DevelopmentUsers).WithName("DevelopmentUsers");
-            endpoints.MapGet("/auth/dev/login/{userKind}", DevelopmentLoginAsync).WithName("DevelopmentLogin");
+            endpoints.MapGet("/auth/dev/app", DevelopmentApp)
+                .WithName("DevelopmentApp")
+                .WithTags("Development Authentication")
+                .WithSummary("Get development app links")
+                .WithDescription("Development 環境で利用できる Swagger、ReDoc、OpenAPI JSON の URL を返します。Production では登録されません。")
+                .Produces<AuthSession.DevelopmentAppResponse>(StatusCodes.Status200OK);
+            endpoints.MapGet("/auth/dev/users", DevelopmentUsers)
+                .WithName("DevelopmentUsers")
+                .WithTags("Development Authentication")
+                .WithSummary("List development sample users")
+                .WithDescription("Discord OAuth を使えない Development 環境向けに、管理者と一般ユーザーのサンプルログイン情報を返します。Production では登録されません。")
+                .Produces<AuthSession.DevelopmentUserResponse[]>(StatusCodes.Status200OK);
+            endpoints.MapGet("/auth/dev/login/{userKind}", DevelopmentLoginAsync)
+                .WithName("DevelopmentLogin")
+                .WithTags("Development Authentication")
+                .WithSummary("Login as a development sample user")
+                .WithDescription("`admin` または `user` を指定して開発用サンプルユーザーとしてログインします。Production では登録されません。")
+                .Produces(StatusCodes.Status302Found)
+                .Produces(StatusCodes.Status404NotFound);
         }
 
         return endpoints;
@@ -140,6 +183,13 @@ public static class DiscordAuthEndpoints
             IsAdmin: false,
             LoginUrl: "/auth/dev/login/user")
     ];
+
+    private static AuthSession.DevelopmentAppResponse DevelopmentApp() =>
+        new(
+            IsDevelopment: true,
+            SwaggerUrl: "/openapi/swagger",
+            ReDocUrl: "/openapi/redoc",
+            OpenApiUrl: "/openapi/v1.json");
 
     private static async Task<IResult> DevelopmentLoginAsync(
         HttpContext httpContext,

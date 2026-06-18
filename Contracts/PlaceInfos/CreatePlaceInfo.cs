@@ -10,6 +10,11 @@ public static class CreatePlaceInfo
     /// <summary>
     /// 場所情報の登録入力です。
     /// </summary>
+    /// <param name="SpotId">場所情報を追加するスポットの ID です。</param>
+    /// <param name="RegisteredByUserId">この場所情報を登録するユーザーの ID です。</param>
+    /// <param name="Name">場所名です。</param>
+    /// <param name="Address">所在地です。</param>
+    /// <param name="BusinessInformation">営業時間、昼夜営業、定休日、臨時休業などを自由に記述できる Markdown 対応テキストです。</param>
     public sealed record Request(
         Guid SpotId,
         string RegisteredByUserId,

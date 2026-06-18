@@ -5,7 +5,15 @@ using VrcWebMap.Backend.UseCases.Spots;
 
 namespace VrcWebMap.Backend.UseCases.WebLinks;
 
-[KawaUseCase("web-links.update", Summary = "Update web link", Version = "v1", Tags = new[] { "WebLinks" })]
+[KawaUseCase(
+    "web-links.update",
+    Summary = "Update web link",
+    Description = "スポットに紐づく外部 Web サイト情報を更新します。OGP preview は保存せず、必要なときに /web-links/preview で取得します。",
+    Version = "v1",
+    Tags = new[] { "WebLinks" })]
+[KawaErrorResponse(KawaErrorKind.NotFound, Description = "Web サイト情報が見つかりません。")]
+[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "Web サイト情報を変更する権限がありません。")]
+[KawaErrorResponse(KawaErrorKind.Validation, Description = "Web サイト情報の入力値が不正です。")]
 public sealed class UpdateWebLinkUseCase(ISpotRepository spots)
     : IUseCase<UpdateWebLink.Request, UpdateWebLink.Response>
 {

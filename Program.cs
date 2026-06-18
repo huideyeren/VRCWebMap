@@ -1,7 +1,9 @@
 using Kawa.Abstractions;
 using Kawa.Web;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
+using VrcWebMap.Backend.Contracts.Areas;
 using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.Contracts.Portal;
 using VrcWebMap.Backend.Contracts.PlaceInfos;
@@ -14,6 +16,7 @@ using VrcWebMap.Backend.Options;
 using VrcWebMap.Backend.Serialization;
 using VrcWebMap.Backend.Services;
 using VrcWebMap.Backend.Stores;
+using VrcWebMap.Backend.UseCases.Areas;
 using VrcWebMap.Backend.UseCases.Comments;
 using VrcWebMap.Backend.UseCases.Portal;
 using VrcWebMap.Backend.UseCases.PlaceInfos;
@@ -42,6 +45,31 @@ builder.Services
         options.LoginPath = "/auth/discord/login";
         options.LogoutPath = "/auth/logout";
         options.AccessDeniedPath = "/auth/forbidden";
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnRedirectToLogin = context =>
+            {
+                if (IsWriteEndpoint(context.Request.Path))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
+                }
+
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            },
+            OnRedirectToAccessDenied = context =>
+            {
+                if (IsWriteEndpoint(context.Request.Path))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return Task.CompletedTask;
+                }
+
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            }
+        };
     });
 builder.Services.AddAuthorization();
 
@@ -64,6 +92,13 @@ else
 builder.Services
     .AddKawa()
     .AddKawaWeb();
+builder.Services.Configure<OpenApiOptions>(
+    KawaOpenApiDefaults.DocumentName,
+    options =>
+    {
+        options.CreateSchemaReferenceId = CreateOpenApiSchemaReferenceId;
+        options.AddSchemaTransformer<AppOpenApiXmlCommentsSchemaTransformer>();
+    });
 
 AddUseCases(builder.Services);
 
@@ -75,6 +110,12 @@ if (string.Equals(databaseProvider, "PostgreSQL", StringComparison.OrdinalIgnore
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+}
+
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    DevelopmentSampleDataSeeder.Seed(scope.ServiceProvider.GetRequiredService<ISpotRepository>());
 }
 
 app.Use(async (context, next) =>
@@ -103,6 +144,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapDiscordAuth();
+app.MapAreas();
 app.MapSpots();
 app.MapSpotContent();
 app.MapPortal();
@@ -111,14 +153,21 @@ app.MapKawaOpenApi();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapKawaSwagger();
-    app.MapKawaReDoc();
+    app.MapKawaSwagger(
+        routePrefix: "openapi/swagger",
+        documentUrl: "/openapi/v1.json",
+        documentName: "VrcWebMap.Backend v1");
+    app.MapKawaReDoc(
+        routePrefix: "openapi/redoc",
+        documentUrl: "/openapi/v1.json",
+        documentName: "VrcWebMap.Backend v1");
 }
 
 app.Run();
 
 static void AddUseCases(IServiceCollection services)
 {
+    services.AddScoped<IUseCase<ListAreas.Request, ListAreas.Response>, ListAreasUseCase>();
     services.AddScoped<IUseCase<CreateComment.Request, CreateComment.Response>, CreateCommentUseCase>();
     services.AddScoped<IUseCase<DeleteComment.Request, DeleteComment.Response>, DeleteCommentUseCase>();
     services.AddScoped<IUseCase<UpdateComment.Request, UpdateComment.Response>, UpdateCommentUseCase>();
@@ -139,4 +188,33 @@ static void AddUseCases(IServiceCollection services)
     services.AddScoped<IUseCase<DeleteWebLink.Request, DeleteWebLink.Response>, DeleteWebLinkUseCase>();
     services.AddScoped<IUseCase<GetWebLinkPreview.Request, GetWebLinkPreview.Response>, GetWebLinkPreviewUseCase>();
     services.AddScoped<IUseCase<UpdateWebLink.Request, UpdateWebLink.Response>, UpdateWebLinkUseCase>();
+}
+
+static bool IsWriteEndpoint(PathString path) =>
+    path.StartsWithSegments("/spots/create") ||
+    path.StartsWithSegments("/spots/update") ||
+    path.StartsWithSegments("/spots/delete") ||
+    path.StartsWithSegments("/vrchat-worlds/create") ||
+    path.StartsWithSegments("/vrchat-worlds/update") ||
+    path.StartsWithSegments("/vrchat-worlds/delete") ||
+    path.StartsWithSegments("/place-infos/create") ||
+    path.StartsWithSegments("/place-infos/update") ||
+    path.StartsWithSegments("/place-infos/delete") ||
+    path.StartsWithSegments("/web-links/create") ||
+    path.StartsWithSegments("/web-links/update") ||
+    path.StartsWithSegments("/web-links/delete") ||
+    path.StartsWithSegments("/comments/create") ||
+    path.StartsWithSegments("/comments/update") ||
+    path.StartsWithSegments("/comments/delete");
+
+static string? CreateOpenApiSchemaReferenceId(System.Text.Json.Serialization.Metadata.JsonTypeInfo typeInfo)
+{
+    var type = typeInfo.Type;
+    if (type is { IsNested: true, DeclaringType: not null } &&
+        type.Namespace?.StartsWith("VrcWebMap.Backend.Contracts.", StringComparison.Ordinal) == true)
+    {
+        return $"{type.DeclaringType.Name}{type.Name}";
+    }
+
+    return OpenApiOptions.CreateDefaultSchemaReferenceId(typeInfo);
 }

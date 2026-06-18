@@ -16,38 +16,6 @@ public sealed class InMemorySpotRepository : ISpotRepository
     private readonly ConcurrentDictionary<Guid, WebLink> webLinks = new();
     private readonly ConcurrentDictionary<Guid, Comment> comments = new();
 
-    /// <summary>
-    /// サンプルデータを持つリポジトリを初期化します。
-    /// </summary>
-    public InMemorySpotRepository()
-    {
-        var sampleSpot = new Spot(
-            Guid.NewGuid(),
-            "sample-discord-user",
-            "VRChat World Hub",
-            35.681236,
-            139.767125,
-            AreaCodes.Japan.Tokyo,
-            "イベント会場と常設ワールドを管理するサンプルスポット");
-
-        spots[sampleSpot.Id] = sampleSpot;
-
-        var sampleWorld = new VRChatWorld(
-            Guid.NewGuid(),
-            sampleSpot.Id,
-            "sample-discord-user",
-            "wrld_7fd023b0-c563-41f5-8b54-e8e01879d7f7",
-            "VketReal inVR 2023S Akiba",
-            40,
-            80,
-            "秋葉原で開かれた VketReal 2023 Summer 会場のフォトグラメトリです。",
-            PC: true,
-            Android: true,
-            IOS: true);
-
-        worlds[sampleWorld.Id] = sampleWorld;
-    }
-
     /// <inheritdoc />
     public Spot[] List() => spots.Values.OrderBy(spot => spot.Name).ToArray();
 

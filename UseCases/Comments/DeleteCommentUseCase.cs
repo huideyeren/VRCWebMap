@@ -4,7 +4,14 @@ using VrcWebMap.Backend.UseCases.Spots;
 
 namespace VrcWebMap.Backend.UseCases.Comments;
 
-[KawaUseCase("comments.delete", Summary = "Delete comment", Version = "v1", Tags = new[] { "Comments" })]
+[KawaUseCase(
+    "comments.delete",
+    Summary = "Delete comment",
+    Description = "スポットに紐づくコメントを削除します。管理者またはコメント登録者本人のみ実行できます。",
+    Version = "v1",
+    Tags = new[] { "Comments" })]
+[KawaErrorResponse(KawaErrorKind.NotFound, Description = "コメントが見つかりません。")]
+[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "コメントを削除する権限がありません。")]
 public sealed class DeleteCommentUseCase(ISpotRepository spots)
     : IUseCase<DeleteComment.Request, DeleteComment.Response>
 {

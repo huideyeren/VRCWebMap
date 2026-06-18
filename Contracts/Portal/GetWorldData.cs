@@ -44,6 +44,13 @@ public static class GetWorldData
     /// <summary>
     /// ポータル JSON に出力する VRChat ワールドです。
     /// </summary>
+    /// <param name="ID">ポータル JSON の world ID です。VRChat world URL を出力します。</param>
+    /// <param name="Name">ポータルに表示するワールド名です。</param>
+    /// <param name="RecommendedCapacity">推奨収容人数です。</param>
+    /// <param name="Capacity">最大収容人数です。</param>
+    /// <param name="Description">ポータルに表示するワールド説明です。</param>
+    /// <param name="Platform">対応プラットフォームです。</param>
+    /// <param name="ReleaseStatus">ポータル JSON の公開状態です。<c>public</c> または <c>private</c> を出力します。</param>
     public sealed record World(
         [property: JsonPropertyName("ID")]
         string ID,
@@ -63,6 +70,9 @@ public static class GetWorldData
     /// <summary>
     /// VRChat ワールドの対応プラットフォームです。
     /// </summary>
+    /// <param name="PC">PC 対応の場合は <c>true</c> です。</param>
+    /// <param name="Android">Android 対応の場合は <c>true</c> です。</param>
+    /// <param name="IOS">iOS 対応の場合は <c>true</c> です。</param>
     public sealed record Platform(
         [property: JsonPropertyName("PC")]
         bool PC,
@@ -74,6 +84,8 @@ public static class GetWorldData
     /// <summary>
     /// private ワールド制御用ロールです。
     /// </summary>
+    /// <param name="RoleName">ポータル側で参照するロール名です。</param>
+    /// <param name="DisplayNames">このロールに紐づく表示名一覧です。</param>
     public sealed record Role(
         [property: JsonPropertyName("RoleName")]
         string RoleName,

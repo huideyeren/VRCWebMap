@@ -5,7 +5,15 @@ using VrcWebMap.Backend.UseCases.Spots;
 
 namespace VrcWebMap.Backend.UseCases.PlaceInfos;
 
-[KawaUseCase("place-infos.update", Summary = "Update place info", Version = "v1", Tags = new[] { "PlaceInfos" })]
+[KawaUseCase(
+    "place-infos.update",
+    Summary = "Update place info",
+    Description = "スポットに紐づく場所情報を更新します。営業情報は Markdown 対応の自由記述テキストとして保存します。",
+    Version = "v1",
+    Tags = new[] { "PlaceInfos" })]
+[KawaErrorResponse(KawaErrorKind.NotFound, Description = "場所情報が見つかりません。")]
+[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "場所情報を変更する権限がありません。")]
+[KawaErrorResponse(KawaErrorKind.Validation, Description = "場所情報の入力値が不正です。")]
 public sealed class UpdatePlaceInfoUseCase(ISpotRepository spots)
     : IUseCase<UpdatePlaceInfo.Request, UpdatePlaceInfo.Response>
 {

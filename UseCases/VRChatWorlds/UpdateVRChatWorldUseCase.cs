@@ -5,7 +5,14 @@ using VrcWebMap.Backend.UseCases.Spots;
 
 namespace VrcWebMap.Backend.UseCases.VRChatWorlds;
 
-[KawaUseCase("vrchat-worlds.update", Summary = "Update VRChat world", Version = "v1", Tags = new[] { "VRChat Worlds" })]
+[KawaUseCase(
+    "vrchat-worlds.update",
+    Summary = "Update VRChat world",
+    Description = "スポットに紐づく VRChat ワールド情報を更新します。VRChat world ID、収容人数、対応プラットフォーム、公開状態を変更できます。",
+    Version = "v1",
+    Tags = new[] { "VRChat Worlds" })]
+[KawaErrorResponse(KawaErrorKind.NotFound, Description = "VRChat ワールド情報が見つかりません。")]
+[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "VRChat ワールド情報を変更する権限がありません。")]
 public sealed class UpdateVRChatWorldUseCase(ISpotRepository spots)
     : IUseCase<UpdateVRChatWorld.Request, UpdateVRChatWorld.Response>
 {

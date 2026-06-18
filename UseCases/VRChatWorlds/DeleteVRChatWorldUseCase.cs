@@ -4,7 +4,14 @@ using VrcWebMap.Backend.UseCases.Spots;
 
 namespace VrcWebMap.Backend.UseCases.VRChatWorlds;
 
-[KawaUseCase("vrchat-worlds.delete", Summary = "Delete VRChat world", Version = "v1", Tags = new[] { "VRChat Worlds" })]
+[KawaUseCase(
+    "vrchat-worlds.delete",
+    Summary = "Delete VRChat world",
+    Description = "スポットに紐づく VRChat ワールド情報を削除します。管理者またはワールド情報の登録者本人のみ実行できます。",
+    Version = "v1",
+    Tags = new[] { "VRChat Worlds" })]
+[KawaErrorResponse(KawaErrorKind.NotFound, Description = "VRChat ワールド情報が見つかりません。")]
+[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "VRChat ワールド情報を削除する権限がありません。")]
 public sealed class DeleteVRChatWorldUseCase(ISpotRepository spots)
     : IUseCase<DeleteVRChatWorld.Request, DeleteVRChatWorld.Response>
 {

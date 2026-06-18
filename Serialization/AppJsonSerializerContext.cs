@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using VrcWebMap.Backend.Contracts.Areas;
 using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.Contracts.Portal;
 using VrcWebMap.Backend.Contracts.PlaceInfos;
@@ -24,6 +25,8 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(Comment[]))]
 [JsonSerializable(typeof(DiscordUser))]
 [JsonSerializable(typeof(DiscordUser[]))]
+[JsonSerializable(typeof(ListAreas.Request), TypeInfoPropertyName = "ListAreasRequest")]
+[JsonSerializable(typeof(ListAreas.Response), TypeInfoPropertyName = "ListAreasResponse")]
 [JsonSerializable(typeof(ListSpots.Request), TypeInfoPropertyName = "ListSpotsRequest")]
 [JsonSerializable(typeof(ListSpots.Response), TypeInfoPropertyName = "ListSpotsResponse")]
 [JsonSerializable(typeof(GetSpot.Request), TypeInfoPropertyName = "GetSpotRequest")]
@@ -73,6 +76,7 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(RegisterDiscordUser.Request), TypeInfoPropertyName = "RegisterDiscordUserRequest")]
 [JsonSerializable(typeof(RegisterDiscordUser.Response), TypeInfoPropertyName = "RegisterDiscordUserResponse")]
 [JsonSerializable(typeof(AuthSession.CurrentUserResponse), TypeInfoPropertyName = "AuthSessionCurrentUserResponse")]
+[JsonSerializable(typeof(AuthSession.DevelopmentAppResponse), TypeInfoPropertyName = "AuthSessionDevelopmentAppResponse")]
 [JsonSerializable(typeof(AuthSession.DevelopmentUserResponse), TypeInfoPropertyName = "AuthSessionDevelopmentUserResponse")]
 [JsonSerializable(typeof(AuthSession.DevelopmentUserResponse[]), TypeInfoPropertyName = "AuthSessionDevelopmentUserResponseArray")]
 [JsonSerializable(typeof(AuthSession.LogoutResponse), TypeInfoPropertyName = "AuthSessionLogoutResponse")]

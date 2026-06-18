@@ -212,6 +212,8 @@ https://booth.pm/ja/items/6659099
 
 Kawa API catalog and OpenAPI endpoints are also mapped by the application.
 Swagger UI and ReDoc are enabled in development.
+The temporary frontend shows a development-only Swagger button in the top menu
+when those documentation pages are enabled.
 
 ## Temporary Frontend
 
@@ -460,6 +462,7 @@ https://booth.pm/ja/items/6659099
 
 Kawa API catalog と OpenAPI endpoint もアプリケーションに map されています。
 開発環境では Swagger UI と ReDoc が有効です。
+仮フロントエンドの上部メニューには、開発環境でのみ Swagger へ移動するボタンを表示します。
 
 ## 仮フロントエンド
 

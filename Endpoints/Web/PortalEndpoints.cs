@@ -1,4 +1,5 @@
 using Kawa.Web;
+using VrcWebMap.Backend.Contracts.Portal;
 using VrcWebMap.Backend.UseCases.Portal;
 
 namespace VrcWebMap.Backend.Endpoints.Web;
@@ -15,7 +16,9 @@ public static class PortalEndpoints
     /// <returns>登録後のエンドポイントルートビルダーです。</returns>
     public static IEndpointRouteBuilder MapPortal(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapKawaPost<GetWorldDataUseCase>("/portal/world-data").WithName("GetPortalWorldData");
+        endpoints.MapKawaPost<GetWorldDataUseCase>("/portal/world-data")
+            .WithName("GetPortalWorldData")
+            .WithContractOpenApi<GetWorldData.Request, GetWorldData.Response>();
 
         return endpoints;
     }
