@@ -125,10 +125,10 @@ app.Use(async (context, next) =>
         "base-uri 'self'; " +
         "object-src 'none'; " +
         "frame-ancestors 'none'; " +
-        "style-src 'self' 'unsafe-inline' https://unpkg.com; " +
-        "script-src 'self' https://unpkg.com https://esm.sh; " +
-        "script-src-elem 'self' https://unpkg.com https://esm.sh; " +
-        "connect-src 'self' https://esm.sh; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "script-src 'self'; " +
+        "script-src-elem 'self'; " +
+        "connect-src 'self'; " +
         "img-src 'self' data: https:; " +
         "font-src 'self' data:; " +
         "form-action 'self'; " +

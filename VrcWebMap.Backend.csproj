@@ -21,8 +21,20 @@
     <ItemGroup>
         <Compile Remove="VrcWebMap.Backend.Tests/**" />
         <Content Remove="VrcWebMap.Backend.Tests/**" />
+        <Content Remove="node_modules/**" />
+        <Content Remove="src/**" />
+        <Content Remove="package.json" />
+        <Content Remove="pnpm-lock.yaml" />
+        <Content Remove="tsconfig.json" />
+        <Content Remove="vite.config.ts" />
         <EmbeddedResource Remove="VrcWebMap.Backend.Tests/**" />
         <None Remove="VrcWebMap.Backend.Tests/**" />
+        <None Remove="node_modules/**" />
+        <None Remove="src/**" />
+        <None Remove="package.json" />
+        <None Remove="pnpm-lock.yaml" />
+        <None Remove="tsconfig.json" />
+        <None Remove="vite.config.ts" />
     </ItemGroup>
 
 </Project>
