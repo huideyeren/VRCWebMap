@@ -5,5 +5,7 @@ VrcWebMap.Backend.Tests/obj/
 .git/
 .idea/
 .vs/
+node_modules/
+wwwroot/assets/
 *.user
 *.suo

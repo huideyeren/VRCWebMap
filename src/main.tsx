@@ -1,5 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from "https://esm.sh/react@19.1.1?pin=v135";
-import { createRoot } from "https://esm.sh/react-dom@19.1.1/client?pin=v135";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
+
+type SelectSpotOptions = {
+    updateUrl?: boolean;
+    center?: boolean;
+    screen?: string;
+};
 
 const TokyoStation = [35.681236, 139.767125];
 const DefaultAreaCode = 13;
@@ -149,7 +157,7 @@ function App() {
         setSpots(loaded);
     }
 
-    async function selectSpot(spot, options = {}) {
+    async function selectSpot(spot, options: SelectSpotOptions = {}) {
         const shouldUpdateUrl = options.updateUrl ?? true;
         const shouldCenter = options.center ?? true;
         const nextScreen = options.screen ?? "map";
@@ -901,7 +909,7 @@ function AdminEditableSection({ title, items, getLabel, createDraft, renderForm,
             ? React.createElement("p", { className: "meta" }, "対象データはありません。")
             : items.map((item) => React.createElement("div", { key: item.id, className: "admin-row" },
                 editingId === item.id
-                    ? React.createElement("form", { className: "content-form", onSubmit: (event) => submit(event, item) },
+                    ? React.createElement("form", { className: "content-form", onSubmit: (event) => submit(event, item) } as React.FormHTMLAttributes<HTMLFormElement>,
                         renderForm(draft, setDraft),
                         React.createElement("div", { className: "actions" },
                             React.createElement("button", { type: "submit", disabled: isSaving }, isSaving ? "保存中..." : "更新"),
@@ -961,7 +969,7 @@ function WebLinkFields({ value, onChange }) {
 function CommentFields({ value, onChange }) {
     return React.createElement("label", null,
         "コメント Markdown",
-        React.createElement("textarea", { value, onChange: (event) => onChange(event.target.value), required: true, rows: 4 })
+        React.createElement("textarea", { value, onChange: (event) => onChange(event.target.value), required: true, rows: 4 } as React.TextareaHTMLAttributes<HTMLTextAreaElement>)
     );
 }
 
@@ -1023,7 +1031,7 @@ function renderWebLink(webLink) {
     );
 }
 
-function OgpPreviewCard({ url, fallbackTitle, fallbackDescription }) {
+function OgpPreviewCard({ url, fallbackTitle, fallbackDescription = "" }) {
     const [preview, setPreview] = useState(null);
 
     useEffect(() => {
