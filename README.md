@@ -109,6 +109,16 @@ The OAuth login URL should request these scopes:
 identify guilds.members.read
 ```
 
+When generating the Discord URL used to invite the application bot to the
+required guild, include the `bot` scope. The login URL and the bot invitation URL
+serve different purposes: `identify` and `guilds.members.read` are for user
+login and membership checks, while `bot` is required so the bot can join the
+guild and later resolve guild roles for administrator detection.
+
+```text
+bot
+```
+
 The bot token is required only for resolving the administrator role by name. The
 bot must be a member of the required guild and must be able to read guild roles.
 If `Discord:BotToken` is empty or the role cannot be resolved, users can still
@@ -360,6 +370,15 @@ OAuth login URL では以下の scope を要求します。
 
 ```text
 identify guilds.members.read
+```
+
+Discord application の Bot を対象サーバーへ招待する URL を生成する場合は、`bot` scope
+も含めます。ログイン URL と Bot 招待 URL は役割が異なります。`identify` と
+`guilds.members.read` はユーザーログインとサーバー参加確認に使い、`bot` は Bot を
+サーバーへ参加させ、管理者判定で guild roles を解決できるようにするために必要です。
+
+```text
+bot
 ```
 
 Bot token は、管理者ロールを名前から解決するために必要です。Bot は対象 Discord サーバーに参加しており、
