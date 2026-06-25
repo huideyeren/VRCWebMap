@@ -109,7 +109,7 @@ if (string.Equals(databaseProvider, "PostgreSQL", StringComparison.OrdinalIgnore
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
+    PostgreSqlSchemaInitializer.EnsureCreated(db);
 }
 
 if (app.Environment.IsDevelopment())

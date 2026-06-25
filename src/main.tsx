@@ -41,7 +41,7 @@ function App() {
     const [isSaving, setIsSaving] = useState(false);
     const [isDownloadingPortal, setIsDownloadingPortal] = useState(false);
     const spotCount = spots.length;
-    const actorUserId = currentUser?.discordUserId;
+    const actorUserId = getCurrentUserId(currentUser);
     const registrantName = currentUser?.displayName ?? currentUser?.username;
 
     useEffect(() => {
@@ -386,6 +386,14 @@ function App() {
                 React.createElement("p", { className: "eyebrow" }, "VRC Web Map"),
                 React.createElement("strong", null, "Map Console")
             ),
+            React.createElement(SearchPanel, {
+                query: searchQuery,
+                resultCount: spotCount,
+                onChange: setSearchQuery,
+                onSubmit: searchSpots,
+                onClear: clearSearch,
+                compact: true
+            }),
             React.createElement("div", { className: "top-menu-controls" },
                 currentUser ? React.createElement("span", { className: "user-chip" }, currentUser.displayName ?? currentUser.username) : null,
                 React.createElement("details", { className: "hamburger-menu" },
@@ -461,13 +469,6 @@ function App() {
             ),
             React.createElement("div", { className: "panel-body" },
                 message ? React.createElement("p", { className: "notice", role: "status" }, message) : null,
-                screen !== "admin" ? React.createElement(SearchPanel, {
-                    query: searchQuery,
-                    resultCount: spotCount,
-                    onChange: setSearchQuery,
-                    onSubmit: searchSpots,
-                    onClear: clearSearch
-                }) : null,
                 screen === "admin" ? React.createElement(AdminScreen, {
                     spots,
                     selectedSpot,
@@ -557,7 +558,8 @@ function AdminScreen({ spots, selectedSpot, selectedDetails, areas, currentUser,
                     webLinks,
                     comments,
                     areas,
-                    actorUserId: currentUser.discordUserId,
+                    currentUser,
+                    actorUserId: getCurrentUserId(currentUser),
                     onChanged,
                     onDeleted,
                     onMessage
@@ -582,7 +584,7 @@ function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
         }
 
         return {
-            actorUserId: currentUser.discordUserId,
+            actorUserId: getCurrentUserId(currentUser),
             actorIsAdmin: true,
             fileName: file.name,
             contentBase64: await readFileAsBase64(file),
@@ -759,14 +761,15 @@ function SpotDetails({ spot, details, areas, currentUser, registeredByUserId, re
         React.createElement("p", { className: "meta" }, `座標: ${formatCoordinate(spot.latitude)}, ${formatCoordinate(spot.longitude)}`),
         React.createElement("p", { className: "meta" }, `地域: ${formatAreaName(spot.areaCode, areas)}`),
         currentUser ? React.createElement(AddContentForms, { spot, registeredByUserId, registrantName, onCreated, onMessage }) : React.createElement(LoginRequiredNotice),
-        currentUser?.isAdmin ? React.createElement(AdminPanel, {
+        canEditSelectedDetails(currentUser, spot, worlds, placeInfos, webLinks, comments) ? React.createElement(AdminPanel, {
             spot,
             worlds,
             placeInfos,
             webLinks,
             comments,
             areas,
-            actorUserId: currentUser.discordUserId,
+            currentUser,
+            actorUserId: getCurrentUserId(currentUser),
             onChanged: onSpotUpdated,
             onDeleted: onSpotDeleted,
             onMessage
@@ -792,6 +795,29 @@ function RelatedSection({ title, items, render }) {
             ? React.createElement("p", { className: "meta" }, "まだ登録されていません。")
             : items.map((item) => React.createElement("div", { key: item.id, className: "related-item" }, render(item)))
     );
+}
+
+function getCurrentUserId(user) {
+    return user?.discordUserId ?? user?.userId ?? "";
+}
+
+function canEditItem(item, user) {
+    const userId = getCurrentUserId(user);
+    return Boolean(user?.isAdmin || (userId && item?.registeredByUserId === userId));
+}
+
+function editableItems(items, user) {
+    return user?.isAdmin ? items : items.filter((item) => canEditItem(item, user));
+}
+
+function canEditSelectedDetails(user, spot, worlds, placeInfos, webLinks, comments) {
+    return Boolean(user && (
+        canEditItem(spot, user) ||
+        worlds.some((item) => canEditItem(item, user)) ||
+        placeInfos.some((item) => canEditItem(item, user)) ||
+        webLinks.some((item) => canEditItem(item, user)) ||
+        comments.some((item) => canEditItem(item, user))
+    ));
 }
 
 function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, onMessage }) {
@@ -874,22 +900,29 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
     );
 }
 
-function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, actorUserId, onChanged, onDeleted, onMessage }) {
-    const actor = { actorUserId, actorIsAdmin: true };
+function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, currentUser, actorUserId, onChanged, onDeleted, onMessage }) {
+    const actor = { actorUserId, actorIsAdmin: currentUser.isAdmin };
+    const canDelete = currentUser.isAdmin;
+    const editableWorlds = editableItems(worlds, currentUser);
+    const editablePlaceInfos = editableItems(placeInfos, currentUser);
+    const editableWebLinks = editableItems(webLinks, currentUser);
+    const editableComments = editableItems(comments, currentUser);
 
     return React.createElement("section", { className: "admin-panel" },
-        React.createElement("p", { className: "eyebrow" }, "Admin only"),
-        React.createElement("h3", null, "管理者編集"),
-        React.createElement("p", { className: "meta" }, "管理者として Spot と関連データを編集・削除できます。"),
-        React.createElement(AdminSpotEditor, { spot, areas, actor, onChanged, onDeleted, onMessage }),
-        React.createElement(AdminWorldSection, { items: worlds, actor, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminPlaceInfoSection, { items: placeInfos, actor, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminWebLinkSection, { items: webLinks, actor, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminCommentSection, { items: comments, actor, onChanged: () => onChanged(spot.id), onMessage })
+        React.createElement("p", { className: "eyebrow" }, currentUser.isAdmin ? "Admin edit" : "Owner edit"),
+        React.createElement("h3", null, currentUser.isAdmin ? "管理者編集" : "登録者編集"),
+        React.createElement("p", { className: "meta" }, currentUser.isAdmin
+            ? "管理者として Spot と関連データを編集・削除できます。"
+            : "あなたが登録した Spot と関連データを編集できます。削除は管理者のみ可能です。"),
+        canEditItem(spot, currentUser) ? React.createElement(AdminSpotEditor, { spot, areas, actor, canDelete, onChanged, onDeleted, onMessage }) : null,
+        React.createElement(AdminWorldSection, { items: editableWorlds, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminPlaceInfoSection, { items: editablePlaceInfos, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminWebLinkSection, { items: editableWebLinks, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminCommentSection, { items: editableComments, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage })
     );
 }
 
-function AdminSpotEditor({ spot, areas, actor, onChanged, onDeleted, onMessage }) {
+function AdminSpotEditor({ spot, areas, actor, canDelete, onChanged, onDeleted, onMessage }) {
     const [draft, setDraft] = useState(createSpotDraft(spot));
     const [isSaving, setIsSaving] = useState(false);
 
@@ -951,11 +984,11 @@ function AdminSpotEditor({ spot, areas, actor, onChanged, onDeleted, onMessage }
             onCancel: () => setDraft(createSpotDraft(spot)),
             submitLabel: "Spot を更新"
         }),
-        React.createElement("button", { type: "button", className: "danger", onClick: remove, disabled: isSaving }, "Spot を削除")
+        canDelete ? React.createElement("button", { type: "button", className: "danger", onClick: remove, disabled: isSaving }, "Spot を削除") : null
     );
 }
 
-function AdminWorldSection({ items, actor, onChanged, onMessage }) {
+function AdminWorldSection({ items, actor, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "VRChat Worlds",
         items,
@@ -976,12 +1009,13 @@ function AdminWorldSection({ items, actor, onChanged, onMessage }) {
             isPrivate: draft.isPrivate
         }),
         onDelete: (world) => deleteVRChatWorld({ id: world.id, ...actor }),
+        canDelete,
         onChanged,
         onMessage
     });
 }
 
-function AdminPlaceInfoSection({ items, actor, onChanged, onMessage }) {
+function AdminPlaceInfoSection({ items, actor, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Place Infos",
         items,
@@ -996,12 +1030,13 @@ function AdminPlaceInfoSection({ items, actor, onChanged, onMessage }) {
             businessInformation: draft.businessInformation
         }),
         onDelete: (placeInfo) => deletePlaceInfo({ id: placeInfo.id, ...actor }),
+        canDelete,
         onChanged,
         onMessage
     });
 }
 
-function AdminWebLinkSection({ items, actor, onChanged, onMessage }) {
+function AdminWebLinkSection({ items, actor, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Web Links",
         items,
@@ -1015,12 +1050,13 @@ function AdminWebLinkSection({ items, actor, onChanged, onMessage }) {
             url: draft.url
         }),
         onDelete: (webLink) => deleteWebLink({ id: webLink.id, ...actor }),
+        canDelete,
         onChanged,
         onMessage
     });
 }
 
-function AdminCommentSection({ items, actor, onChanged, onMessage }) {
+function AdminCommentSection({ items, actor, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Comments",
         items,
@@ -1036,12 +1072,13 @@ function AdminCommentSection({ items, actor, onChanged, onMessage }) {
             comments: draft.comments
         }),
         onDelete: (comment) => deleteComment({ id: comment.id, ...actor }),
+        canDelete,
         onChanged,
         onMessage
     });
 }
 
-function AdminEditableSection({ title, items, getLabel, createDraft, renderForm, onUpdate, onDelete, onChanged, onMessage }) {
+function AdminEditableSection({ title, items, getLabel, createDraft, renderForm, onUpdate, onDelete, canDelete, onChanged, onMessage }) {
     const [editingId, setEditingId] = useState(null);
     const [draft, setDraft] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -1091,7 +1128,7 @@ function AdminEditableSection({ title, items, getLabel, createDraft, renderForm,
     return React.createElement("div", { className: "admin-card" },
         React.createElement("h4", null, title),
         items.length === 0
-            ? React.createElement("p", { className: "meta" }, "対象データはありません。")
+            ? React.createElement("p", { className: "meta" }, "編集可能な対象データはありません。")
             : items.map((item) => React.createElement("div", { key: item.id, className: "admin-row" },
                 editingId === item.id
                     ? React.createElement("form", { className: "content-form", onSubmit: (event) => submit(event, item) } as React.FormHTMLAttributes<HTMLFormElement>,
@@ -1105,7 +1142,7 @@ function AdminEditableSection({ title, items, getLabel, createDraft, renderForm,
                         React.createElement("p", { className: "meta" }, getLabel(item)),
                         React.createElement("div", { className: "actions" },
                             React.createElement("button", { type: "button", className: "secondary", onClick: () => beginEdit(item), disabled: isSaving }, "編集"),
-                            React.createElement("button", { type: "button", className: "danger", onClick: () => remove(item), disabled: isSaving }, "削除")
+                            canDelete ? React.createElement("button", { type: "button", className: "danger", onClick: () => remove(item), disabled: isSaving }, "削除") : null
                         )
                     )
             ))
@@ -1158,9 +1195,9 @@ function CommentFields({ value, onChange }) {
     );
 }
 
-function SearchPanel({ query, resultCount, onChange, onSubmit, onClear }) {
-    return React.createElement("form", { className: "card search-card", onSubmit },
-        React.createElement("label", null,
+function SearchPanel({ query, resultCount, onChange, onSubmit, onClear, compact = false }) {
+    return React.createElement("form", { className: compact ? "top-search-form" : "card search-card", onSubmit },
+        React.createElement("label", { className: compact ? "top-search-label" : undefined },
             "Spot 検索",
             React.createElement("input", {
                 type: "search",
@@ -1169,12 +1206,14 @@ function SearchPanel({ query, resultCount, onChange, onSubmit, onClear }) {
                 placeholder: "スポット名・説明を検索"
             })
         ),
-        React.createElement("p", { className: "meta" },
-            query.trim()
-                ? `検索結果: ${resultCount} 件`
-                : `表示中: ${resultCount} 件`
-        ),
-        React.createElement("div", { className: "actions" },
+        compact
+            ? React.createElement("span", { className: "top-search-count", "aria-live": "polite" }, query.trim() ? `${resultCount} 件` : `${resultCount} spots`)
+            : React.createElement("p", { className: "meta" },
+                query.trim()
+                    ? `検索結果: ${resultCount} 件`
+                    : `表示中: ${resultCount} 件`
+            ),
+        React.createElement("div", { className: compact ? "top-search-actions" : "actions" },
             React.createElement("button", { type: "submit" }, "検索"),
             React.createElement("button", { type: "button", className: "secondary", onClick: onClear, disabled: !query.trim() }, "クリア")
         )

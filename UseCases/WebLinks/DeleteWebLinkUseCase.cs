@@ -7,7 +7,7 @@ namespace VrcWebMap.Backend.UseCases.WebLinks;
 [KawaUseCase(
     "web-links.delete",
     Summary = "Delete web link",
-    Description = "スポットに紐づく外部 Web サイト情報を削除します。管理者または Web サイト情報の登録者本人のみ実行できます。",
+    Description = "スポットに紐づく外部 Web サイト情報を削除します。削除は管理者のみ実行できます。",
     Version = "v1",
     Tags = new[] { "WebLinks" })]
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "Web サイト情報が見つかりません。")]
@@ -22,7 +22,7 @@ public sealed class DeleteWebLinkUseCase(ISpotRepository spots)
             return Task.FromResult(KawaResult<DeleteWebLink.Response>.Failure(new KawaError(KawaErrorKind.NotFound, "Web サイト情報が見つかりません。")));
         }
 
-        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, request.ActorUserId, request.ActorIsAdmin))
+        if (!SpotAuthorization.CanDelete(request.ActorIsAdmin))
         {
             return Task.FromResult(KawaResult<DeleteWebLink.Response>.Failure(new KawaError(KawaErrorKind.Forbidden, "Web サイト情報を削除する権限がありません。")));
         }

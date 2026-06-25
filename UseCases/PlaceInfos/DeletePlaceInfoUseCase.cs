@@ -7,7 +7,7 @@ namespace VrcWebMap.Backend.UseCases.PlaceInfos;
 [KawaUseCase(
     "place-infos.delete",
     Summary = "Delete place info",
-    Description = "スポットに紐づく場所情報を削除します。管理者または場所情報の登録者本人のみ実行できます。",
+    Description = "スポットに紐づく場所情報を削除します。削除は管理者のみ実行できます。",
     Version = "v1",
     Tags = new[] { "PlaceInfos" })]
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "場所情報が見つかりません。")]
@@ -22,7 +22,7 @@ public sealed class DeletePlaceInfoUseCase(ISpotRepository spots)
             return Task.FromResult(KawaResult<DeletePlaceInfo.Response>.Failure(new KawaError(KawaErrorKind.NotFound, "場所情報が見つかりません。")));
         }
 
-        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, request.ActorUserId, request.ActorIsAdmin))
+        if (!SpotAuthorization.CanDelete(request.ActorIsAdmin))
         {
             return Task.FromResult(KawaResult<DeletePlaceInfo.Response>.Failure(new KawaError(KawaErrorKind.Forbidden, "場所情報を削除する権限がありません。")));
         }

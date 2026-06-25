@@ -7,7 +7,7 @@ namespace VrcWebMap.Backend.UseCases.VRChatWorlds;
 [KawaUseCase(
     "vrchat-worlds.delete",
     Summary = "Delete VRChat world",
-    Description = "スポットに紐づく VRChat ワールド情報を削除します。管理者またはワールド情報の登録者本人のみ実行できます。",
+    Description = "スポットに紐づく VRChat ワールド情報を削除します。削除は管理者のみ実行できます。",
     Version = "v1",
     Tags = new[] { "VRChat Worlds" })]
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "VRChat ワールド情報が見つかりません。")]
@@ -22,7 +22,7 @@ public sealed class DeleteVRChatWorldUseCase(ISpotRepository spots)
             return Task.FromResult(KawaResult<DeleteVRChatWorld.Response>.Failure(new KawaError(KawaErrorKind.NotFound, "VRChat ワールド情報が見つかりません。")));
         }
 
-        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, request.ActorUserId, request.ActorIsAdmin))
+        if (!SpotAuthorization.CanDelete(request.ActorIsAdmin))
         {
             return Task.FromResult(KawaResult<DeleteVRChatWorld.Response>.Failure(new KawaError(KawaErrorKind.Forbidden, "VRChat ワールド情報を削除する権限がありません。")));
         }

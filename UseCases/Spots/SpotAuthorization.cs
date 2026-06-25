@@ -15,4 +15,11 @@ internal static class SpotAuthorization
     public static bool CanMutate(string registeredByUserId, string actorUserId, bool actorIsAdmin) =>
         actorIsAdmin ||
         string.Equals(registeredByUserId, actorUserId?.Trim(), StringComparison.Ordinal);
+
+    /// <summary>
+    /// 削除は管理者に限定します。登録者本人の削除を許すと、公開済みの地図情報が意図せず失われやすいためです。
+    /// </summary>
+    /// <param name="actorIsAdmin">操作ユーザーが管理者かどうかです。</param>
+    /// <returns>削除可能な場合は <c>true</c> です。</returns>
+    public static bool CanDelete(bool actorIsAdmin) => actorIsAdmin;
 }

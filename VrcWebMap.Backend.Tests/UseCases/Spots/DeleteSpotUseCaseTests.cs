@@ -9,7 +9,23 @@ namespace VrcWebMap.Backend.Tests.UseCases.Spots;
 public sealed class DeleteSpotUseCaseTests
 {
     [Fact]
-    public async Task ExecuteAsync_ExistingSpot_DeletesSpot()
+    public async Task ExecuteAsync_Admin_DeletesSpot()
+    {
+        var spot = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
+        var repository = new FakeSpotRepository(spot);
+        var useCase = new DeleteSpotUseCase(repository);
+
+        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id, "admin-user", ActorIsAdmin: true));
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal(spot.Id, result.Value.Id);
+        Assert.Contains(spot.Id, repository.DeletedSpotIds);
+        Assert.False(repository.Exists(spot.Id));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Owner_ReturnsForbidden()
     {
         var spot = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
         var repository = new FakeSpotRepository(spot);
@@ -17,11 +33,11 @@ public sealed class DeleteSpotUseCaseTests
 
         var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id, "owner-user", ActorIsAdmin: false));
 
-        Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Value);
-        Assert.Equal(spot.Id, result.Value.Id);
-        Assert.Contains(spot.Id, repository.DeletedSpotIds);
-        Assert.False(repository.Exists(spot.Id));
+        Assert.True(result.IsFailure);
+        Assert.NotNull(result.Error);
+        Assert.Equal(KawaErrorKind.Forbidden, result.Error.Kind);
+        Assert.True(repository.Exists(spot.Id));
+        Assert.DoesNotContain(spot.Id, repository.DeletedSpotIds);
     }
 
     [Fact]
@@ -68,7 +84,7 @@ public sealed class DeleteSpotUseCaseTests
             new Uri("https://example.com")));
         var useCase = new DeleteSpotUseCase(repository);
 
-        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id, "owner-user", ActorIsAdmin: false));
+        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id, "admin-user", ActorIsAdmin: true));
 
         Assert.True(result.IsFailure);
         Assert.NotNull(result.Error);

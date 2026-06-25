@@ -7,7 +7,7 @@ namespace VrcWebMap.Backend.UseCases.Comments;
 [KawaUseCase(
     "comments.delete",
     Summary = "Delete comment",
-    Description = "スポットに紐づくコメントを削除します。管理者またはコメント登録者本人のみ実行できます。",
+    Description = "スポットに紐づくコメントを削除します。削除は管理者のみ実行できます。",
     Version = "v1",
     Tags = new[] { "Comments" })]
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "コメントが見つかりません。")]
@@ -22,7 +22,7 @@ public sealed class DeleteCommentUseCase(ISpotRepository spots)
             return Task.FromResult(KawaResult<DeleteComment.Response>.Failure(new KawaError(KawaErrorKind.NotFound, "コメントが見つかりません。")));
         }
 
-        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, request.ActorUserId, request.ActorIsAdmin))
+        if (!SpotAuthorization.CanDelete(request.ActorIsAdmin))
         {
             return Task.FromResult(KawaResult<DeleteComment.Response>.Failure(new KawaError(KawaErrorKind.Forbidden, "コメントを削除する権限がありません。")));
         }
