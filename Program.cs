@@ -178,7 +178,9 @@ static void AddUseCases(IServiceCollection services)
     services.AddScoped<IUseCase<CreateSpot.Request, CreateSpot.Response>, CreateSpotUseCase>();
     services.AddScoped<IUseCase<DeleteSpot.Request, DeleteSpot.Response>, DeleteSpotUseCase>();
     services.AddScoped<IUseCase<GetSpot.Request, GetSpot.Response>, GetSpotUseCase>();
+    services.AddScoped<IUseCase<ImportKmlSpots.Request, ImportKmlSpots.Response>, ImportKmlSpotsUseCase>();
     services.AddScoped<IUseCase<ListSpots.Request, ListSpots.Response>, ListSpotsUseCase>();
+    services.AddScoped<IUseCase<PreviewKmlImport.Request, PreviewKmlImport.Response>, PreviewKmlImportUseCase>();
     services.AddScoped<IUseCase<UpdateSpot.Request, UpdateSpot.Response>, UpdateSpotUseCase>();
     services.AddScoped<IUseCase<RegisterDiscordUser.Request, RegisterDiscordUser.Response>, RegisterDiscordUserUseCase>();
     services.AddScoped<IUseCase<CreateVRChatWorld.Request, CreateVRChatWorld.Response>, CreateVRChatWorldUseCase>();
@@ -192,6 +194,7 @@ static void AddUseCases(IServiceCollection services)
 
 static bool IsWriteEndpoint(PathString path) =>
     path.StartsWithSegments("/spots/create") ||
+    path.StartsWithSegments("/spots/import/kml") ||
     path.StartsWithSegments("/spots/update") ||
     path.StartsWithSegments("/spots/delete") ||
     path.StartsWithSegments("/vrchat-worlds/create") ||

@@ -26,6 +26,14 @@ public static class SpotsEndpoints
             .WithName("CreateSpot")
             .WithContractOpenApi<CreateSpot.Request, CreateSpot.Response>()
             .RequireAuthorization();
+        endpoints.MapKawaPost<PreviewKmlImportUseCase>("/spots/import/kml/preview")
+            .WithName("PreviewKmlImport")
+            .WithContractOpenApi<PreviewKmlImport.Request, PreviewKmlImport.Response>()
+            .RequireAuthorization();
+        endpoints.MapKawaPost<ImportKmlSpotsUseCase>("/spots/import/kml")
+            .WithName("ImportKmlSpots")
+            .WithContractOpenApi<ImportKmlSpots.Request, ImportKmlSpots.Response>()
+            .RequireAuthorization();
         endpoints.MapKawaPost<UpdateSpotUseCase>("/spots/update")
             .WithName("UpdateSpot")
             .WithContractOpenApi<UpdateSpot.Request, UpdateSpot.Response>()

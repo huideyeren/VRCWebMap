@@ -1,5 +1,6 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Spots;
+using VrcWebMap.Backend.Models;
 
 namespace VrcWebMap.Backend.UseCases.Spots;
 
@@ -25,7 +26,31 @@ public sealed class ListSpotsUseCase(ISpotRepository spots)
         ListSpots.Request request,
         CancellationToken cancellationToken = default)
     {
-        var response = new ListSpots.Response(spots.List());
+        var allSpots = spots.List();
+        var terms = SearchTerms(request.Query);
+        var listedSpots = terms.Length == 0
+            ? allSpots
+            : allSpots.Where(spot => MatchesAllTerms(spot, terms)).ToArray();
+
+        var response = new ListSpots.Response(listedSpots);
         return Task.FromResult(KawaResult<ListSpots.Response>.Success(response));
     }
+
+    private static string[] SearchTerms(string? query) =>
+        string.IsNullOrWhiteSpace(query)
+            ? []
+            : query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static bool MatchesAllTerms(Spot spot, string[] terms)
+    {
+        // Repository-specific full-text indexes can be introduced later. Keeping
+        // this rule in the UseCase makes the search behavior identical for the
+        // in-memory prototype and PostgreSQL while the data set is still small.
+        return terms.All(term =>
+            Contains(spot.Name, term) ||
+            Contains(spot.Description, term));
+    }
+
+    private static bool Contains(string value, string term) =>
+        value.Contains(term, StringComparison.OrdinalIgnoreCase);
 }

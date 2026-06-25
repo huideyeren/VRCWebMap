@@ -10,7 +10,7 @@ public static class ListSpots
     /// <summary>
     /// スポット一覧取得の入力です。
     /// </summary>
-    /// <param name="Query">将来の検索条件用の任意クエリです。</param>
+    /// <param name="Query">スポット名と説明を検索する任意クエリです。空白区切りで複数語を指定できます。</param>
     public sealed record Request(string? Query = null);
 
     /// <summary>

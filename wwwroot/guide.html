@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; script-src-elem 'self'; connect-src 'self'; img-src 'self' data: https:; font-src 'self' data:; form-action 'self'; upgrade-insecure-requests">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>使い方 - VRC Web Map</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="document-page">
+<main class="document-shell">
+    <nav class="document-nav" aria-label="ページナビゲーション">
+        <a class="menu-button secondary" href="/">地図へ戻る</a>
+        <a class="menu-button secondary" href="/terms.html">利用規約</a>
+        <a class="menu-button secondary" href="/privacy.html">プライバシーポリシー</a>
+    </nav>
+
+    <article class="document-card">
+        <p class="eyebrow">VRC Web Map</p>
+        <h1>使い方</h1>
+        <p class="meta">VRC Web Map は、現実の場所と VRChat ワールドを地図上で結びつけて共有するための地図アプリです。</p>
+
+        <section>
+            <h2>1. 地図を見る</h2>
+            <p>地図上の marker をクリックすると、登録済み Spot の説明、関連する VRChat World、場所情報、Web リンク、コメントを確認できます。</p>
+            <p>URL に <code>?spotId={id}</code>、<code>?spot={id}</code>、または <code>#spot={id}</code> が含まれている場合は、その Spot を中心に表示します。</p>
+        </section>
+
+        <section>
+            <h2>2. Spot を検索する</h2>
+            <p>右ペインの「Spot 検索」欄から、スポット名と説明を検索できます。キーワードを入力して「検索」を押すと、条件に一致する Spot だけを地図と一覧に表示します。</p>
+            <p>空白で区切って複数の語を入力した場合は、すべての語を含む Spot を表示します。検索を解除する場合は「クリア」を押してください。</p>
+        </section>
+
+        <section>
+            <h2>3. ログインする</h2>
+            <p>Spot や関連情報を登録するには Discord ログインが必要です。ログインできるユーザーは、設定された Discord サーバーに参加しているユーザーに限定されます。</p>
+        </section>
+
+        <section>
+            <h2>4. Spot を登録する</h2>
+            <p>ログイン後、地図上で登録したい場所を右クリックすると Spot 登録フォームが開きます。Spot 名、説明、緯度・経度、都道府県または地域を入力して保存してください。</p>
+            <p>説明欄では、見出し、箇条書き、リンクなどの簡単な Markdown を利用できます。</p>
+        </section>
+
+        <section>
+            <h2>5. 関連情報を追加する</h2>
+            <p>Spot の詳細画面から、VRChat World、場所情報、Web リンク、コメントを追加できます。VRChat World や Web リンクには、外部ページの preview が表示されることがあります。</p>
+        </section>
+
+        <section>
+            <h2>6. 編集・削除する</h2>
+            <p>登録者本人または管理者は、登録したデータを更新・削除できます。管理者としてログインしている場合は、管理用画面から Spot と関連情報をまとめて編集できます。</p>
+            <p>Spot に関連情報が紐づいている場合、Spot の削除は拒否されます。先に関連情報を削除してください。</p>
+        </section>
+
+        <section>
+            <h2>7. KML/KMZ から Spot を import する</h2>
+            <p>管理者は、管理用画面から Google My Maps などで export した KML/KMZ を読み込み、Point Placemark を Spot として import できます。</p>
+            <p>まず「Preview」で候補を確認し、問題がなければ「Import」を押してください。1ファイルあたり最大 5,000 件の Point Placemark を読み込めます。KML の coordinates は WGS84 の <code>longitude,latitude[,altitude]</code> として読み込みます。LineString、Polygon、MultiGeometry、NetworkLink、外部参照は現在未対応です。</p>
+        </section>
+
+        <section>
+            <h2>8. PortalLibrarySystem 用 JSON を出力する</h2>
+            <p>上部メニューの「WorldData.json ダウンロード」から、PortalLibrarySystem 向けの JSON を生成できます。出力内容は登録済み VRChat World と地域カテゴリに基づきます。</p>
+        </section>
+
+        <section>
+            <h2>問い合わせ</h2>
+            <p>不具合、削除依頼、運用に関する問い合わせは、<a href="mailto:maps@inokashiraskey.jp">maps@inokashiraskey.jp</a> までご連絡ください。</p>
+        </section>
+    </article>
+</main>
+</body>
+</html>
