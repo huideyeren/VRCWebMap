@@ -34,7 +34,7 @@ public sealed class DeleteSpotUseCase(ISpotRepository spots)
             return Task.FromResult(KawaResult<DeleteSpot.Response>.Failure(error));
         }
 
-        if (!SpotAuthorization.CanMutate(spot.RegisteredByUserId, request.ActorUserId, request.ActorIsAdmin))
+        if (!SpotAuthorization.CanDelete(request.ActorIsAdmin))
         {
             var error = new KawaError(KawaErrorKind.Forbidden, "スポットを削除する権限がありません。");
             return Task.FromResult(KawaResult<DeleteSpot.Response>.Failure(error));

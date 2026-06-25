@@ -1,5 +1,8 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import markerIcon2xUrl from "leaflet/dist/images/marker-icon-2x.png?url";
+import markerIconUrl from "leaflet/dist/images/marker-icon.png?url";
+import markerShadowUrl from "leaflet/dist/images/marker-shadow.png?url";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -11,6 +14,12 @@ type SelectSpotOptions = {
 
 const TokyoStation = [35.681236, 139.767125];
 const DefaultAreaCode = 13;
+
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: markerIcon2xUrl,
+    iconUrl: markerIconUrl,
+    shadowUrl: markerShadowUrl
+});
 
 function App() {
     const mapElementRef = useRef(null);
@@ -28,10 +37,11 @@ function App() {
     const [developmentApp, setDevelopmentApp] = useState(null);
     const [developmentUsers, setDevelopmentUsers] = useState([]);
     const [message, setMessage] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [isDownloadingPortal, setIsDownloadingPortal] = useState(false);
     const spotCount = spots.length;
-    const actorUserId = currentUser?.discordUserId;
+    const actorUserId = getCurrentUserId(currentUser);
     const registrantName = currentUser?.displayName ?? currentUser?.username;
 
     useEffect(() => {
@@ -153,7 +163,7 @@ function App() {
 
     async function refreshSpots() {
         setMessage("");
-        const loaded = await loadSpots();
+        const loaded = await loadSpots(searchQuery);
         setSpots(loaded);
     }
 
@@ -238,7 +248,7 @@ function App() {
     }
 
     async function reloadAfterSpotMutation(spotId) {
-        const loaded = await loadSpots();
+        const loaded = await loadSpots(searchQuery);
         setSpots(loaded);
 
         if (spotId) {
@@ -276,7 +286,7 @@ function App() {
                 areaCode: Number(draft.areaCode),
                 description: draft.description
             });
-            const loaded = await loadSpots();
+            const loaded = await loadSpots(searchQuery);
             setSpots(loaded);
             setDraft(null);
             setSelectedSpot(created);
@@ -285,6 +295,40 @@ function App() {
             setMessage(error.message);
         } finally {
             setIsSaving(false);
+        }
+    }
+
+    async function searchSpots(event) {
+        event.preventDefault();
+        setMessage("");
+        setDraft(null);
+        setSelectedSpot(null);
+        setSelectedDetails(null);
+        clearLinkedSpotId();
+
+        try {
+            const loaded = await loadSpots(searchQuery);
+            setSpots(loaded);
+            if (searchQuery.trim() && loaded.length === 0) {
+                setMessage("検索条件に一致する Spot は見つかりませんでした。");
+            }
+        } catch (error) {
+            setMessage(error.message);
+        }
+    }
+
+    async function clearSearch() {
+        setSearchQuery("");
+        setMessage("");
+        setDraft(null);
+        setSelectedSpot(null);
+        setSelectedDetails(null);
+        clearLinkedSpotId();
+
+        try {
+            setSpots(await loadSpots());
+        } catch (error) {
+            setMessage(error.message);
         }
     }
 
@@ -342,43 +386,71 @@ function App() {
                 React.createElement("p", { className: "eyebrow" }, "VRC Web Map"),
                 React.createElement("strong", null, "Map Console")
             ),
-            React.createElement("div", { className: "menu-actions" },
-                currentUser
-                    ? React.createElement(React.Fragment, null,
-                        React.createElement("span", { className: "user-chip" }, currentUser.displayName ?? currentUser.username),
-                        currentUser.isAdmin ? React.createElement("button", {
-                            type: "button",
-                            className: screen === "admin" ? "" : "secondary",
-                            onClick: openAdminScreen
-                        }, "管理用画面") : null,
+            React.createElement(SearchPanel, {
+                query: searchQuery,
+                resultCount: spotCount,
+                onChange: setSearchQuery,
+                onSubmit: searchSpots,
+                onClear: clearSearch,
+                compact: true
+            }),
+            React.createElement("div", { className: "top-menu-controls" },
+                currentUser ? React.createElement("span", { className: "user-chip" }, currentUser.displayName ?? currentUser.username) : null,
+                React.createElement("details", { className: "hamburger-menu" },
+                    React.createElement("summary", { "aria-label": "メニューを開く" },
+                        React.createElement("span", { className: "hamburger-icon", "aria-hidden": "true" },
+                            React.createElement("span", null),
+                            React.createElement("span", null),
+                            React.createElement("span", null)
+                        ),
+                        React.createElement("span", null, "メニュー")
+                    ),
+                    React.createElement("div", { className: "menu-panel" },
+                        React.createElement("a", { className: "menu-button secondary", href: "/guide.html" }, "使い方"),
+                        React.createElement("a", { className: "menu-button secondary", href: "/terms.html" }, "利用規約"),
+                        React.createElement("a", { className: "menu-button secondary", href: "/privacy.html" }, "プライバシーポリシー"),
+                        React.createElement("hr", null),
+                        currentUser
+                            ? React.createElement(React.Fragment, null,
+                                currentUser.isAdmin ? React.createElement("button", {
+                                    type: "button",
+                                    className: screen === "admin" ? "" : "secondary",
+                                    onClick: openAdminScreen
+                                }, "管理用画面") : null,
+                                React.createElement("button", {
+                                    type: "button",
+                                    className: "secondary",
+                                    onClick: logout
+                                }, "ログアウト")
+                            )
+                            : React.createElement(React.Fragment, null,
+                                React.createElement("a", { className: "menu-button", href: "/auth/discord/login" }, "Discord ログイン"),
+                                developmentUsers.map((user) =>
+                                    React.createElement("a", {
+                                        key: user.userId,
+                                        className: user.isAdmin ? "menu-button" : "menu-button secondary",
+                                        href: user.loginUrl
+                                    }, user.isAdmin ? "開発: 管理者" : "開発: 一般")
+                                )
+                            ),
+                        developmentApp ? React.createElement(React.Fragment, null,
+                            React.createElement("hr", null),
+                            React.createElement("a", {
+                                className: "menu-button secondary",
+                                href: developmentApp.swaggerUrl,
+                                target: "_blank",
+                                rel: "noopener noreferrer"
+                            }, "Swagger")
+                        ) : null,
+                        React.createElement("hr", null),
                         React.createElement("button", {
                             type: "button",
                             className: "secondary",
-                            onClick: logout
-                        }, "ログアウト")
+                            onClick: downloadPortalData,
+                            disabled: isDownloadingPortal
+                        }, isDownloadingPortal ? "生成中..." : "WorldData.json ダウンロード")
                     )
-                    : React.createElement(React.Fragment, null,
-                        React.createElement("a", { className: "menu-button", href: "/auth/discord/login" }, "Discord ログイン"),
-                        developmentUsers.map((user) =>
-                            React.createElement("a", {
-                                key: user.userId,
-                                className: user.isAdmin ? "menu-button" : "menu-button secondary",
-                                href: user.loginUrl
-                            }, user.isAdmin ? "開発: 管理者" : "開発: 一般")
-                        )
-                    ),
-                developmentApp ? React.createElement("a", {
-                    className: "menu-button secondary",
-                    href: developmentApp.swaggerUrl,
-                    target: "_blank",
-                    rel: "noopener noreferrer"
-                }, "Swagger") : null,
-                React.createElement("button", {
-                    type: "button",
-                    className: "secondary",
-                    onClick: downloadPortalData,
-                    disabled: isDownloadingPortal
-                }, isDownloadingPortal ? "生成中..." : "WorldData.json ダウンロード")
+                )
             )
         ),
         React.createElement("section", { className: "map-frame" },
@@ -458,6 +530,12 @@ function AdminScreen({ spots, selectedSpot, selectedDetails, areas, currentUser,
             React.createElement("button", { type: "button", className: "secondary", onClick: onBack }, "通常画面へ戻る"),
             React.createElement("button", { type: "button", className: "secondary", onClick: onReload }, "Spot を再読み込み")
         ),
+        React.createElement(KmlImportPanel, {
+            areas,
+            currentUser,
+            onImported: onReload,
+            onMessage
+        }),
         React.createElement("div", { className: "admin-card" },
             React.createElement("h4", null, "管理対象 Spot"),
             spots.length === 0
@@ -480,13 +558,122 @@ function AdminScreen({ spots, selectedSpot, selectedDetails, areas, currentUser,
                     webLinks,
                     comments,
                     areas,
-                    actorUserId: currentUser.discordUserId,
+                    currentUser,
+                    actorUserId: getCurrentUserId(currentUser),
                     onChanged,
                     onDeleted,
                     onMessage
                 })
                 : React.createElement("p", { className: "meta" }, "Spot 詳細を読み込み中です。")
             : React.createElement("p", { className: "meta" }, "編集する Spot を選択してください。")
+    );
+}
+
+function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
+    const [file, setFile] = useState(null);
+    const [defaultAreaCode, setDefaultAreaCode] = useState(DefaultAreaCode);
+    const [preview, setPreview] = useState(null);
+    const [isPreviewing, setIsPreviewing] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
+
+    const candidateCount = preview?.items?.length ?? 0;
+
+    async function buildPayload() {
+        if (!file) {
+            throw new Error("KML または KMZ ファイルを選択してください。");
+        }
+
+        return {
+            actorUserId: getCurrentUserId(currentUser),
+            actorIsAdmin: true,
+            fileName: file.name,
+            contentBase64: await readFileAsBase64(file),
+            defaultAreaCode: Number(defaultAreaCode)
+        };
+    }
+
+    async function previewFile(event) {
+        event.preventDefault();
+        setIsPreviewing(true);
+        setPreview(null);
+        onMessage("");
+
+        try {
+            const nextPreview = await previewKmlImport(await buildPayload());
+            setPreview(nextPreview);
+            onMessage(`${nextPreview.items?.length ?? 0} 件の Spot 候補を読み込みました。`);
+        } catch (error) {
+            onMessage(error.message);
+        } finally {
+            setIsPreviewing(false);
+        }
+    }
+
+    async function importFile() {
+        setIsImporting(true);
+        onMessage("");
+
+        try {
+            const result = await importKmlSpots(await buildPayload());
+            setPreview(null);
+            setFile(null);
+            await onImported();
+            onMessage(`${result.spots?.length ?? 0} 件の Spot を import しました。`);
+        } catch (error) {
+            onMessage(error.message);
+        } finally {
+            setIsImporting(false);
+        }
+    }
+
+    return React.createElement("form", { className: "admin-card kml-import-panel", onSubmit: previewFile },
+        React.createElement("h4", null, "KML/KMZ import"),
+        React.createElement("p", { className: "meta" }, "Google My Maps などから export した KML/KMZ の Point Placemark を Spot 候補として読み込みます。座標は WGS84 の longitude,latitude として扱います。"),
+        React.createElement("label", null,
+            "KML/KMZ ファイル",
+            React.createElement("input", {
+                type: "file",
+                accept: ".kml,.kmz,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz",
+                onChange: (event) => {
+                    setFile(event.target.files?.[0] ?? null);
+                    setPreview(null);
+                }
+            })
+        ),
+        React.createElement("label", null,
+            "既定エリア",
+            React.createElement("select", {
+                value: defaultAreaCode,
+                onChange: (event) => {
+                    setDefaultAreaCode(Number(event.target.value));
+                    setPreview(null);
+                }
+            } as React.SelectHTMLAttributes<HTMLSelectElement>,
+                areas.map((area) => React.createElement("option", { key: area.areaCode, value: area.areaCode }, area.areaName))
+            )
+        ),
+        React.createElement("div", { className: "actions" },
+            React.createElement("button", { type: "submit", disabled: isPreviewing || isImporting }, isPreviewing ? "解析中..." : "Preview"),
+            React.createElement("button", { type: "button", className: "secondary", onClick: importFile, disabled: isPreviewing || isImporting || candidateCount === 0 }, isImporting ? "Import 中..." : "Import")
+        ),
+        preview ? React.createElement("div", { className: "kml-preview" },
+            React.createElement("p", { className: "meta" }, `候補: ${candidateCount} 件 / 未対応 Placemark: ${preview.unsupportedPlacemarkCount ?? 0} 件`),
+            preview.warnings?.length ? React.createElement("ul", { className: "warning-list" },
+                preview.warnings.map((warning, index) => React.createElement("li", { key: index }, warning))
+            ) : null,
+            candidateCount === 0
+                ? React.createElement("p", { className: "meta" }, "import 可能な Point Placemark はありません。")
+                : React.createElement("div", { className: "related-list" }, preview.items.slice(0, 10).map((item, index) =>
+                    React.createElement("div", { key: `${item.name}-${index}`, className: "related-item" },
+                        React.createElement("strong", null, item.name),
+                        React.createElement("p", { className: "meta" }, `${formatCoordinate(item.latitude)}, ${formatCoordinate(item.longitude)} / ${formatAreaName(item.areaCode, areas)}`),
+                        item.warnings?.length ? React.createElement("ul", { className: "warning-list" },
+                            item.warnings.map((warning, warningIndex) => React.createElement("li", { key: warningIndex }, warning))
+                        ) : null
+                    )
+                )),
+            candidateCount > 10 ? React.createElement("p", { className: "meta" }, `ほか ${candidateCount - 10} 件`) : null
+        ) : null
     );
 }
 
@@ -574,14 +761,15 @@ function SpotDetails({ spot, details, areas, currentUser, registeredByUserId, re
         React.createElement("p", { className: "meta" }, `座標: ${formatCoordinate(spot.latitude)}, ${formatCoordinate(spot.longitude)}`),
         React.createElement("p", { className: "meta" }, `地域: ${formatAreaName(spot.areaCode, areas)}`),
         currentUser ? React.createElement(AddContentForms, { spot, registeredByUserId, registrantName, onCreated, onMessage }) : React.createElement(LoginRequiredNotice),
-        currentUser?.isAdmin ? React.createElement(AdminPanel, {
+        canEditSelectedDetails(currentUser, spot, worlds, placeInfos, webLinks, comments) ? React.createElement(AdminPanel, {
             spot,
             worlds,
             placeInfos,
             webLinks,
             comments,
             areas,
-            actorUserId: currentUser.discordUserId,
+            currentUser,
+            actorUserId: getCurrentUserId(currentUser),
             onChanged: onSpotUpdated,
             onDeleted: onSpotDeleted,
             onMessage
@@ -607,6 +795,29 @@ function RelatedSection({ title, items, render }) {
             ? React.createElement("p", { className: "meta" }, "まだ登録されていません。")
             : items.map((item) => React.createElement("div", { key: item.id, className: "related-item" }, render(item)))
     );
+}
+
+function getCurrentUserId(user) {
+    return user?.discordUserId ?? user?.userId ?? "";
+}
+
+function canEditItem(item, user) {
+    const userId = getCurrentUserId(user);
+    return Boolean(user?.isAdmin || (userId && item?.registeredByUserId === userId));
+}
+
+function editableItems(items, user) {
+    return user?.isAdmin ? items : items.filter((item) => canEditItem(item, user));
+}
+
+function canEditSelectedDetails(user, spot, worlds, placeInfos, webLinks, comments) {
+    return Boolean(user && (
+        canEditItem(spot, user) ||
+        worlds.some((item) => canEditItem(item, user)) ||
+        placeInfos.some((item) => canEditItem(item, user)) ||
+        webLinks.some((item) => canEditItem(item, user)) ||
+        comments.some((item) => canEditItem(item, user))
+    ));
 }
 
 function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, onMessage }) {
@@ -689,22 +900,29 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
     );
 }
 
-function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, actorUserId, onChanged, onDeleted, onMessage }) {
-    const actor = { actorUserId, actorIsAdmin: true };
+function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, currentUser, actorUserId, onChanged, onDeleted, onMessage }) {
+    const actor = { actorUserId, actorIsAdmin: currentUser.isAdmin };
+    const canDelete = currentUser.isAdmin;
+    const editableWorlds = editableItems(worlds, currentUser);
+    const editablePlaceInfos = editableItems(placeInfos, currentUser);
+    const editableWebLinks = editableItems(webLinks, currentUser);
+    const editableComments = editableItems(comments, currentUser);
 
     return React.createElement("section", { className: "admin-panel" },
-        React.createElement("p", { className: "eyebrow" }, "Admin only"),
-        React.createElement("h3", null, "管理者編集"),
-        React.createElement("p", { className: "meta" }, "管理者として Spot と関連データを編集・削除できます。"),
-        React.createElement(AdminSpotEditor, { spot, areas, actor, onChanged, onDeleted, onMessage }),
-        React.createElement(AdminWorldSection, { items: worlds, actor, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminPlaceInfoSection, { items: placeInfos, actor, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminWebLinkSection, { items: webLinks, actor, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminCommentSection, { items: comments, actor, onChanged: () => onChanged(spot.id), onMessage })
+        React.createElement("p", { className: "eyebrow" }, currentUser.isAdmin ? "Admin edit" : "Owner edit"),
+        React.createElement("h3", null, currentUser.isAdmin ? "管理者編集" : "登録者編集"),
+        React.createElement("p", { className: "meta" }, currentUser.isAdmin
+            ? "管理者として Spot と関連データを編集・削除できます。"
+            : "あなたが登録した Spot と関連データを編集できます。削除は管理者のみ可能です。"),
+        canEditItem(spot, currentUser) ? React.createElement(AdminSpotEditor, { spot, areas, actor, canDelete, onChanged, onDeleted, onMessage }) : null,
+        React.createElement(AdminWorldSection, { items: editableWorlds, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminPlaceInfoSection, { items: editablePlaceInfos, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminWebLinkSection, { items: editableWebLinks, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminCommentSection, { items: editableComments, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage })
     );
 }
 
-function AdminSpotEditor({ spot, areas, actor, onChanged, onDeleted, onMessage }) {
+function AdminSpotEditor({ spot, areas, actor, canDelete, onChanged, onDeleted, onMessage }) {
     const [draft, setDraft] = useState(createSpotDraft(spot));
     const [isSaving, setIsSaving] = useState(false);
 
@@ -766,11 +984,11 @@ function AdminSpotEditor({ spot, areas, actor, onChanged, onDeleted, onMessage }
             onCancel: () => setDraft(createSpotDraft(spot)),
             submitLabel: "Spot を更新"
         }),
-        React.createElement("button", { type: "button", className: "danger", onClick: remove, disabled: isSaving }, "Spot を削除")
+        canDelete ? React.createElement("button", { type: "button", className: "danger", onClick: remove, disabled: isSaving }, "Spot を削除") : null
     );
 }
 
-function AdminWorldSection({ items, actor, onChanged, onMessage }) {
+function AdminWorldSection({ items, actor, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "VRChat Worlds",
         items,
@@ -791,12 +1009,13 @@ function AdminWorldSection({ items, actor, onChanged, onMessage }) {
             isPrivate: draft.isPrivate
         }),
         onDelete: (world) => deleteVRChatWorld({ id: world.id, ...actor }),
+        canDelete,
         onChanged,
         onMessage
     });
 }
 
-function AdminPlaceInfoSection({ items, actor, onChanged, onMessage }) {
+function AdminPlaceInfoSection({ items, actor, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Place Infos",
         items,
@@ -811,12 +1030,13 @@ function AdminPlaceInfoSection({ items, actor, onChanged, onMessage }) {
             businessInformation: draft.businessInformation
         }),
         onDelete: (placeInfo) => deletePlaceInfo({ id: placeInfo.id, ...actor }),
+        canDelete,
         onChanged,
         onMessage
     });
 }
 
-function AdminWebLinkSection({ items, actor, onChanged, onMessage }) {
+function AdminWebLinkSection({ items, actor, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Web Links",
         items,
@@ -830,12 +1050,13 @@ function AdminWebLinkSection({ items, actor, onChanged, onMessage }) {
             url: draft.url
         }),
         onDelete: (webLink) => deleteWebLink({ id: webLink.id, ...actor }),
+        canDelete,
         onChanged,
         onMessage
     });
 }
 
-function AdminCommentSection({ items, actor, onChanged, onMessage }) {
+function AdminCommentSection({ items, actor, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Comments",
         items,
@@ -851,12 +1072,13 @@ function AdminCommentSection({ items, actor, onChanged, onMessage }) {
             comments: draft.comments
         }),
         onDelete: (comment) => deleteComment({ id: comment.id, ...actor }),
+        canDelete,
         onChanged,
         onMessage
     });
 }
 
-function AdminEditableSection({ title, items, getLabel, createDraft, renderForm, onUpdate, onDelete, onChanged, onMessage }) {
+function AdminEditableSection({ title, items, getLabel, createDraft, renderForm, onUpdate, onDelete, canDelete, onChanged, onMessage }) {
     const [editingId, setEditingId] = useState(null);
     const [draft, setDraft] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -906,7 +1128,7 @@ function AdminEditableSection({ title, items, getLabel, createDraft, renderForm,
     return React.createElement("div", { className: "admin-card" },
         React.createElement("h4", null, title),
         items.length === 0
-            ? React.createElement("p", { className: "meta" }, "対象データはありません。")
+            ? React.createElement("p", { className: "meta" }, "編集可能な対象データはありません。")
             : items.map((item) => React.createElement("div", { key: item.id, className: "admin-row" },
                 editingId === item.id
                     ? React.createElement("form", { className: "content-form", onSubmit: (event) => submit(event, item) } as React.FormHTMLAttributes<HTMLFormElement>,
@@ -920,7 +1142,7 @@ function AdminEditableSection({ title, items, getLabel, createDraft, renderForm,
                         React.createElement("p", { className: "meta" }, getLabel(item)),
                         React.createElement("div", { className: "actions" },
                             React.createElement("button", { type: "button", className: "secondary", onClick: () => beginEdit(item), disabled: isSaving }, "編集"),
-                            React.createElement("button", { type: "button", className: "danger", onClick: () => remove(item), disabled: isSaving }, "削除")
+                            canDelete ? React.createElement("button", { type: "button", className: "danger", onClick: () => remove(item), disabled: isSaving }, "削除") : null
                         )
                     )
             ))
@@ -970,6 +1192,31 @@ function CommentFields({ value, onChange }) {
     return React.createElement("label", null,
         "コメント Markdown",
         React.createElement("textarea", { value, onChange: (event) => onChange(event.target.value), required: true, rows: 4 } as React.TextareaHTMLAttributes<HTMLTextAreaElement>)
+    );
+}
+
+function SearchPanel({ query, resultCount, onChange, onSubmit, onClear, compact = false }) {
+    return React.createElement("form", { className: compact ? "top-search-form" : "card search-card", onSubmit },
+        React.createElement("label", { className: compact ? "top-search-label" : undefined },
+            "Spot 検索",
+            React.createElement("input", {
+                type: "search",
+                value: query,
+                onChange: (event) => onChange(event.target.value),
+                placeholder: "スポット名・説明を検索"
+            })
+        ),
+        compact
+            ? React.createElement("span", { className: "top-search-count", "aria-live": "polite" }, query.trim() ? `${resultCount} 件` : `${resultCount} spots`)
+            : React.createElement("p", { className: "meta" },
+                query.trim()
+                    ? `検索結果: ${resultCount} 件`
+                    : `表示中: ${resultCount} 件`
+            ),
+        React.createElement("div", { className: compact ? "top-search-actions" : "actions" },
+            React.createElement("button", { type: "submit" }, "検索"),
+            React.createElement("button", { type: "button", className: "secondary", onClick: onClear, disabled: !query.trim() }, "クリア")
+        )
     );
 }
 
@@ -1108,8 +1355,8 @@ async function loadAreas() {
     return unwrap(body).areas ?? [];
 }
 
-async function loadSpots() {
-    const body = await postJson("/spots/list", {});
+async function loadSpots(query = "") {
+    const body = await postJson("/spots/list", { query });
     return unwrap(body).spots ?? [];
 }
 
@@ -1121,6 +1368,16 @@ async function getSpot(id) {
 async function createSpot(payload) {
     const body = await postJson("/spots/create", payload);
     return unwrap(body).spot;
+}
+
+async function previewKmlImport(payload) {
+    const body = await postJson("/spots/import/kml/preview", payload);
+    return unwrap(body);
+}
+
+async function importKmlSpots(payload) {
+    const body = await postJson("/spots/import/kml", payload);
+    return unwrap(body);
 }
 
 async function updateSpot(payload) {
@@ -1215,6 +1472,18 @@ async function postJson(url, payload) {
 
 function unwrap(body) {
     return body?.value ?? body;
+}
+
+function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+            const result = String(reader.result ?? "");
+            resolve(result.includes(",") ? result.split(",", 2)[1] : result);
+        });
+        reader.addEventListener("error", () => reject(new Error("ファイルを読み込めませんでした。")));
+        reader.readAsDataURL(file);
+    });
 }
 
 function roundCoordinate(value) {
