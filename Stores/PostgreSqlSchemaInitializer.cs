@@ -23,13 +23,35 @@ public static class PostgreSqlSchemaInitializer
         """;
 
     /// <summary>
+    /// 既存の DiscordUsers table へVRChat表示名の列と一意indexを補うSQLです。
+    /// </summary>
+    public const string EnsureDiscordProfileSchemaSql =
+        """
+        ALTER TABLE "DiscordUsers"
+            ADD COLUMN IF NOT EXISTS "VRChatDisplayName" character varying(100),
+            ADD COLUMN IF NOT EXISTS "NormalizedVRChatDisplayName" character varying(100);
+
+        CREATE UNIQUE INDEX IF NOT EXISTS "IX_DiscordUsers_NormalizedVRChatDisplayName"
+        ON "DiscordUsers" ("NormalizedVRChatDisplayName")
+        WHERE "NormalizedVRChatDisplayName" IS NOT NULL;
+        """;
+
+    /// <summary>
     /// 現在の PostgreSQL schema を起動時に利用可能な状態へ整えます。
     /// </summary>
     /// <param name="db">アプリケーション DB context です。</param>
     public static void EnsureCreated(AppDbContext db)
     {
         db.Database.EnsureCreated();
+        EnsureDiscordProfileSchema(db);
         EnsureSpotSearchIndex(db);
+    }
+
+    private static void EnsureDiscordProfileSchema(AppDbContext db)
+    {
+        // EnsureCreated() は既存tableへ列を追加しないため、既存volumeを保持したまま
+        // nullable列と一意indexだけを冪等に補います。
+        db.Database.ExecuteSqlRaw(EnsureDiscordProfileSchemaSql);
     }
 
     private static void EnsureSpotSearchIndex(AppDbContext db)

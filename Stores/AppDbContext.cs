@@ -30,7 +30,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(user => user.GlobalName).HasMaxLength(100);
             entity.Property(user => user.AvatarHash).HasMaxLength(128);
             entity.Property(user => user.RequiredGuildId).HasMaxLength(128).IsRequired();
+            entity.Property(user => user.VRChatDisplayName).HasMaxLength(100);
+            entity.Property(user => user.NormalizedVRChatDisplayName).HasMaxLength(100);
             entity.HasIndex(user => user.RequiredGuildId);
+            entity.HasIndex(user => user.NormalizedVRChatDisplayName)
+                .IsUnique()
+                .HasFilter("\"NormalizedVRChatDisplayName\" IS NOT NULL");
         });
 
         modelBuilder.Entity<Spot>(entity =>

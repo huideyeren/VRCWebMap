@@ -10,8 +10,19 @@ internal sealed class FakeDiscordUserRepository(params DiscordUser[] initialUser
 
     public List<DiscordUser> SavedUsers { get; } = [];
 
+    public DiscordUser[] List() => users.Values.ToArray();
+
     public bool TryGetByDiscordUserId(string discordUserId, [NotNullWhen(true)] out DiscordUser? user) =>
         users.TryGetValue(discordUserId, out user);
+
+    public bool TryGetByNormalizedVRChatDisplayName(
+        string normalizedVRChatDisplayName,
+        [NotNullWhen(true)] out DiscordUser? user)
+    {
+        user = users.Values.FirstOrDefault(
+            candidate => candidate.NormalizedVRChatDisplayName == normalizedVRChatDisplayName);
+        return user is not null;
+    }
 
     public void Upsert(DiscordUser user)
     {

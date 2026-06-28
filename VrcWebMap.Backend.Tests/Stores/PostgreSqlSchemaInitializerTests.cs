@@ -16,4 +16,16 @@ public sealed class PostgreSqlSchemaInitializerTests
         Assert.Contains("\"Name\"", sql, StringComparison.Ordinal);
         Assert.Contains("\"Description\"", sql, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void EnsureDiscordProfileSchemaSql_AddsNullableColumnsAndUniquePartialIndex()
+    {
+        var sql = PostgreSqlSchemaInitializer.EnsureDiscordProfileSchemaSql;
+
+        Assert.Contains("ADD COLUMN IF NOT EXISTS \"VRChatDisplayName\"", sql, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS \"NormalizedVRChatDisplayName\"", sql, StringComparison.Ordinal);
+        Assert.Contains("CREATE UNIQUE INDEX IF NOT EXISTS", sql, StringComparison.Ordinal);
+        Assert.Contains("\"IX_DiscordUsers_NormalizedVRChatDisplayName\"", sql, StringComparison.Ordinal);
+        Assert.Contains("WHERE \"NormalizedVRChatDisplayName\" IS NOT NULL", sql, StringComparison.Ordinal);
+    }
 }
