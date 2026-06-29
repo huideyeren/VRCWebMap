@@ -2,6 +2,7 @@ using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Comments;
 
@@ -13,17 +14,25 @@ namespace VrcWebMap.Backend.UseCases.Comments;
     Tags = new[] { "Comments" })]
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "コメントが見つかりません。")]
 [KawaErrorResponse(KawaErrorKind.Forbidden, Description = "コメントを変更する権限がありません。")]
-public sealed class UpdateCommentUseCase(ISpotRepository spots)
+public sealed class UpdateCommentUseCase(
+    ISpotRepository spots,
+    ICurrentActorAccessor currentActor)
     : IUseCase<UpdateComment.Request, UpdateComment.Response>
 {
     public Task<KawaResult<UpdateComment.Response>> ExecuteAsync(UpdateComment.Request request, CancellationToken cancellationToken = default)
     {
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<UpdateComment.Response>.Failure(actorError));
+        }
+
         if (!spots.TryGetComment(request.Id, out var existing))
         {
             return Task.FromResult(KawaResult<UpdateComment.Response>.Failure(new KawaError(KawaErrorKind.NotFound, "コメントが見つかりません。")));
         }
 
-        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, request.ActorUserId, request.ActorIsAdmin))
+        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, actor!.DiscordUserId, actor.IsAdmin))
         {
             return Task.FromResult(KawaResult<UpdateComment.Response>.Failure(new KawaError(KawaErrorKind.Forbidden, "コメントを変更する権限がありません。")));
         }

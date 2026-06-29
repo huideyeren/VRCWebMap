@@ -9,9 +9,7 @@ public static class DeleteComment
     /// 削除対象のコメントと操作ユーザーを指定する入力です。
     /// </summary>
     /// <param name="Id">削除するコメントの ID です。</param>
-    /// <param name="ActorUserId">削除操作を行うユーザーの ID です。</param>
-    /// <param name="ActorIsAdmin">削除操作を行うユーザーが管理者かどうかです。</param>
-    public sealed record Request(Guid Id, string ActorUserId, bool ActorIsAdmin);
+    public sealed record Request(Guid Id);
 
     /// <summary>
     /// 削除されたコメント ID を返すレスポンスです。

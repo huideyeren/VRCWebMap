@@ -3,6 +3,7 @@ using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.Tests.TestDoubles;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.Tests.UseCases.Spots;
 
@@ -12,9 +13,10 @@ public sealed class CreateSpotUseCaseTests
     public async Task ExecuteAsync_ValidRequest_CreatesSpot()
     {
         var repository = new FakeSpotRepository();
-        var useCase = new CreateSpotUseCase(repository);
+        var useCase = new CreateSpotUseCase(
+            repository,
+            new FakeCurrentActorAccessor(new CurrentActor("owner-user", IsAdmin: false, HasVRChatDisplayName: true)));
         var request = new CreateSpot.Request(
-            " owner-user ",
             "  テストスポット  ",
             35.681236,
             139.767125,
@@ -37,14 +39,12 @@ public sealed class CreateSpotUseCaseTests
     }
 
     [Theory]
-    [InlineData("", "スポット", 35.681236, 139.767125, AreaCodes.Japan.Tokyo, "説明", "登録者 ID は必須です。")]
-    [InlineData("owner-user", "", 35.681236, 139.767125, AreaCodes.Japan.Tokyo, "説明", "地図名は必須です。")]
-    [InlineData("owner-user", "スポット", -91, 139.767125, AreaCodes.Japan.Tokyo, "説明", "緯度は -90 から 90 の範囲で指定してください。")]
-    [InlineData("owner-user", "スポット", 35.681236, 181, AreaCodes.Japan.Tokyo, "説明", "経度は -180 から 180 の範囲で指定してください。")]
-    [InlineData("owner-user", "スポット", 35.681236, 139.767125, 999, "説明", "地域コードは定義済みの値を指定してください。")]
-    [InlineData("owner-user", "スポット", 35.681236, 139.767125, AreaCodes.Japan.Tokyo, "", "説明は必須です。")]
+    [InlineData("", 35.681236, 139.767125, AreaCodes.Japan.Tokyo, "説明", "地図名は必須です。")]
+    [InlineData("スポット", -91, 139.767125, AreaCodes.Japan.Tokyo, "説明", "緯度は -90 から 90 の範囲で指定してください。")]
+    [InlineData("スポット", 35.681236, 181, AreaCodes.Japan.Tokyo, "説明", "経度は -180 から 180 の範囲で指定してください。")]
+    [InlineData("スポット", 35.681236, 139.767125, 999, "説明", "地域コードは定義済みの値を指定してください。")]
+    [InlineData("スポット", 35.681236, 139.767125, AreaCodes.Japan.Tokyo, "", "説明は必須です。")]
     public async Task ExecuteAsync_InvalidRequest_ReturnsValidationError(
-        string registeredByUserId,
         string name,
         double latitude,
         double longitude,
@@ -53,8 +53,10 @@ public sealed class CreateSpotUseCaseTests
         string expectedMessage)
     {
         var repository = new FakeSpotRepository();
-        var useCase = new CreateSpotUseCase(repository);
-        var request = new CreateSpot.Request(registeredByUserId, name, latitude, longitude, areaCode, description);
+        var useCase = new CreateSpotUseCase(
+            repository,
+            new FakeCurrentActorAccessor(new CurrentActor("owner-user", IsAdmin: false, HasVRChatDisplayName: true)));
+        var request = new CreateSpot.Request(name, latitude, longitude, areaCode, description);
 
         var result = await useCase.ExecuteAsync(request);
 
@@ -62,6 +64,27 @@ public sealed class CreateSpotUseCaseTests
         Assert.NotNull(result.Error);
         Assert.Equal(KawaErrorKind.Validation, result.Error.Kind);
         Assert.Equal(expectedMessage, result.Error.Message);
+        Assert.Empty(repository.SavedSpots);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ActorWithoutVRChatDisplayName_ReturnsForbidden()
+    {
+        var repository = new FakeSpotRepository();
+        var useCase = new CreateSpotUseCase(
+            repository,
+            new FakeCurrentActorAccessor(new CurrentActor("owner-user", IsAdmin: false, HasVRChatDisplayName: false)));
+        var request = new CreateSpot.Request(
+            "スポット",
+            35.681236,
+            139.767125,
+            AreaCodes.Japan.Tokyo,
+            "説明");
+
+        var result = await useCase.ExecuteAsync(request);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(KawaErrorKind.Forbidden, result.Error!.Kind);
         Assert.Empty(repository.SavedSpots);
     }
 }

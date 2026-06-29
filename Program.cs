@@ -32,6 +32,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
 });
 builder.Services.Configure<DiscordOptions>(builder.Configuration.GetSection("Discord"));
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentActorAccessor, HttpCurrentActorAccessor>();
 builder.Services.AddHttpClient<DiscordApiClient>();
 builder.Services.AddHttpClient<IOpenGraphPreviewProvider, OpenGraphPreviewClient>(client =>
 {
@@ -144,6 +146,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapDiscordAuth();
+app.MapUsers();
 app.MapAreas();
 app.MapSpots();
 app.MapSpotContent();
@@ -183,6 +186,9 @@ static void AddUseCases(IServiceCollection services)
     services.AddScoped<IUseCase<PreviewKmlImport.Request, PreviewKmlImport.Response>, PreviewKmlImportUseCase>();
     services.AddScoped<IUseCase<UpdateSpot.Request, UpdateSpot.Response>, UpdateSpotUseCase>();
     services.AddScoped<IUseCase<RegisterDiscordUser.Request, RegisterDiscordUser.Response>, RegisterDiscordUserUseCase>();
+    services.AddScoped<IUseCase<UpdateVRChatDisplayName.Request, UpdateVRChatDisplayName.Response>, UpdateVRChatDisplayNameUseCase>();
+    services.AddScoped<IUseCase<ListUsers.Request, ListUsers.Response>, ListUsersUseCase>();
+    services.AddScoped<IUseCase<SetUserAdminStatus.Request, SetUserAdminStatus.Response>, SetUserAdminStatusUseCase>();
     services.AddScoped<IUseCase<CreateVRChatWorld.Request, CreateVRChatWorld.Response>, CreateVRChatWorldUseCase>();
     services.AddScoped<IUseCase<DeleteVRChatWorld.Request, DeleteVRChatWorld.Response>, DeleteVRChatWorldUseCase>();
     services.AddScoped<IUseCase<UpdateVRChatWorld.Request, UpdateVRChatWorld.Response>, UpdateVRChatWorldUseCase>();
@@ -208,7 +214,10 @@ static bool IsWriteEndpoint(PathString path) =>
     path.StartsWithSegments("/web-links/delete") ||
     path.StartsWithSegments("/comments/create") ||
     path.StartsWithSegments("/comments/update") ||
-    path.StartsWithSegments("/comments/delete");
+    path.StartsWithSegments("/comments/delete") ||
+    path.StartsWithSegments("/users/profile") ||
+    path.StartsWithSegments("/users/list") ||
+    path.StartsWithSegments("/users/admin-status");
 
 static string? CreateOpenApiSchemaReferenceId(System.Text.Json.Serialization.Metadata.JsonTypeInfo typeInfo)
 {

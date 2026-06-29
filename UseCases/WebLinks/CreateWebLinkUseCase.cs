@@ -2,6 +2,7 @@ using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.WebLinks;
 using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.WebLinks;
 
@@ -13,13 +14,21 @@ namespace VrcWebMap.Backend.UseCases.WebLinks;
     Tags = new[] { "WebLinks" })]
 [KawaErrorResponse(KawaErrorKind.Validation, Description = "Web サイト情報の入力値が不正です。")]
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "スポットが見つかりません。")]
-public sealed class CreateWebLinkUseCase(ISpotRepository spots)
+public sealed class CreateWebLinkUseCase(
+    ISpotRepository spots,
+    ICurrentActorAccessor currentActor)
     : IUseCase<CreateWebLink.Request, CreateWebLink.Response>
 {
     public Task<KawaResult<CreateWebLink.Response>> ExecuteAsync(
         CreateWebLink.Request request,
         CancellationToken cancellationToken = default)
     {
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<CreateWebLink.Response>.Failure(actorError));
+        }
+
         if (request.SpotId == Guid.Empty)
         {
             var error = new KawaError(KawaErrorKind.Validation, "スポット ID は必須です。");
@@ -32,17 +41,16 @@ public sealed class CreateWebLinkUseCase(ISpotRepository spots)
             return Task.FromResult(KawaResult<CreateWebLink.Response>.Failure(error));
         }
 
-        if (string.IsNullOrWhiteSpace(request.RegisteredByUserId) ||
-            string.IsNullOrWhiteSpace(request.SiteName))
+        if (string.IsNullOrWhiteSpace(request.SiteName))
         {
-            var error = new KawaError(KawaErrorKind.Validation, "登録者 ID、サイト名、URL は必須です。");
+            var error = new KawaError(KawaErrorKind.Validation, "サイト名とURLは必須です。");
             return Task.FromResult(KawaResult<CreateWebLink.Response>.Failure(error));
         }
 
         var webLink = new WebLink(
             Guid.NewGuid(),
             request.SpotId,
-            request.RegisteredByUserId.Trim(),
+            actor!.DiscordUserId,
             request.SiteName.Trim(),
             request.Url);
 

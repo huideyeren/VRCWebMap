@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Spots;
 
@@ -11,10 +12,13 @@ namespace VrcWebMap.Backend.UseCases.Spots;
     Version = "v1",
     Tags = new[] { "Spot Management" })]
 [KawaErrorResponse(KawaErrorKind.Validation, Description = "スポットの入力値が不正です。")]
+[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "DiscordログインとVRChat表示名の登録が必要です。")]
 /// <summary>
 /// スポットを新規作成するユースケースです。
 /// </summary>
-public sealed class CreateSpotUseCase(ISpotRepository spots)
+public sealed class CreateSpotUseCase(
+    ISpotRepository spots,
+    ICurrentActorAccessor currentActor)
     : IUseCase<CreateSpot.Request, CreateSpot.Response>
 {
     /// <summary>
@@ -27,8 +31,14 @@ public sealed class CreateSpotUseCase(ISpotRepository spots)
         CreateSpot.Request request,
         CancellationToken cancellationToken = default)
     {
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<CreateSpot.Response>.Failure(actorError));
+        }
+
         var validationError = SpotValidation.Validate(
-            request.RegisteredByUserId,
+            actor!.DiscordUserId,
             request.Name,
             request.Latitude,
             request.Longitude,
@@ -42,7 +52,7 @@ public sealed class CreateSpotUseCase(ISpotRepository spots)
 
         var spot = new Spot(
             Guid.NewGuid(),
-            request.RegisteredByUserId.Trim(),
+            actor.DiscordUserId,
             request.Name.Trim(),
             request.Latitude,
             request.Longitude,

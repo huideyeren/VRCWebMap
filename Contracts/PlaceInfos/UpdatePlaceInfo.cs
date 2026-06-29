@@ -11,15 +11,11 @@ public static class UpdatePlaceInfo
     /// 場所情報更新に必要な入力です。
     /// </summary>
     /// <param name="Id">更新する場所情報の ID です。</param>
-    /// <param name="ActorUserId">更新操作を行うユーザーの ID です。</param>
-    /// <param name="ActorIsAdmin">更新操作を行うユーザーが管理者かどうかです。</param>
     /// <param name="Name">更新後の場所名です。</param>
     /// <param name="Address">更新後の所在地です。</param>
     /// <param name="BusinessInformation">更新後の Markdown 対応営業情報です。</param>
     public sealed record Request(
         Guid Id,
-        string ActorUserId,
-        bool ActorIsAdmin,
         string Name,
         string Address,
         string BusinessInformation);

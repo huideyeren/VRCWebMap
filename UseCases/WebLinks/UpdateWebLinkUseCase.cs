@@ -2,6 +2,7 @@ using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.WebLinks;
 using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.WebLinks;
 
@@ -14,17 +15,25 @@ namespace VrcWebMap.Backend.UseCases.WebLinks;
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "Web サイト情報が見つかりません。")]
 [KawaErrorResponse(KawaErrorKind.Forbidden, Description = "Web サイト情報を変更する権限がありません。")]
 [KawaErrorResponse(KawaErrorKind.Validation, Description = "Web サイト情報の入力値が不正です。")]
-public sealed class UpdateWebLinkUseCase(ISpotRepository spots)
+public sealed class UpdateWebLinkUseCase(
+    ISpotRepository spots,
+    ICurrentActorAccessor currentActor)
     : IUseCase<UpdateWebLink.Request, UpdateWebLink.Response>
 {
     public Task<KawaResult<UpdateWebLink.Response>> ExecuteAsync(UpdateWebLink.Request request, CancellationToken cancellationToken = default)
     {
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<UpdateWebLink.Response>.Failure(actorError));
+        }
+
         if (!spots.TryGetWebLink(request.Id, out var existing))
         {
             return Task.FromResult(KawaResult<UpdateWebLink.Response>.Failure(new KawaError(KawaErrorKind.NotFound, "Web サイト情報が見つかりません。")));
         }
 
-        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, request.ActorUserId, request.ActorIsAdmin))
+        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, actor!.DiscordUserId, actor.IsAdmin))
         {
             return Task.FromResult(KawaResult<UpdateWebLink.Response>.Failure(new KawaError(KawaErrorKind.Forbidden, "Web サイト情報を変更する権限がありません。")));
         }

@@ -11,7 +11,6 @@ public static class CreateVRChatWorld
     /// VRChat ワールド情報の登録入力です。
     /// </summary>
     /// <param name="SpotId">VRChat ワールド情報を追加するスポットの ID です。</param>
-    /// <param name="RegisteredByUserId">このワールド情報を登録するユーザーの ID です。</param>
     /// <param name="VRChatWorldId">VRChat 側の world ID です。</param>
     /// <param name="Name">VRChat ワールド名です。</param>
     /// <param name="RecommendedCapacity">推奨収容人数です。</param>
@@ -23,7 +22,6 @@ public static class CreateVRChatWorld
     /// <param name="IsPrivate">private ワールドとしてポータル JSON に出力する場合は <c>true</c> です。</param>
     public sealed record Request(
         Guid SpotId,
-        string RegisteredByUserId,
         string VRChatWorldId,
         string Name,
         int RecommendedCapacity,

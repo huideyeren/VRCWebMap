@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Spots;
 
@@ -15,23 +16,25 @@ namespace VrcWebMap.Backend.UseCases.Spots;
 /// <summary>
 /// KML/KMZ から Spot を import するユースケースです。
 /// </summary>
-public sealed class ImportKmlSpotsUseCase(ISpotRepository spots)
+public sealed class ImportKmlSpotsUseCase(
+    ISpotRepository spots,
+    ICurrentActorAccessor currentActor)
     : IUseCase<ImportKmlSpots.Request, ImportKmlSpots.Response>
 {
     public Task<KawaResult<ImportKmlSpots.Response>> ExecuteAsync(
         ImportKmlSpots.Request request,
         CancellationToken cancellationToken = default)
     {
-        if (!request.ActorIsAdmin)
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<ImportKmlSpots.Response>.Failure(actorError));
+        }
+
+        if (!actor!.IsAdmin)
         {
             return Task.FromResult(KawaResult<ImportKmlSpots.Response>.Failure(
                 new KawaError(KawaErrorKind.Forbidden, "KML/KMZ import は管理者のみ実行できます。")));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.ActorUserId))
-        {
-            return Task.FromResult(KawaResult<ImportKmlSpots.Response>.Failure(
-                new KawaError(KawaErrorKind.Validation, "操作ユーザー ID は必須です。")));
         }
 
         var parseResult = KmlSpotImportParser.Parse(request.FileName, request.ContentBase64, request.DefaultAreaCode);
@@ -46,7 +49,7 @@ public sealed class ImportKmlSpotsUseCase(ISpotRepository spots)
         {
             var spot = new Spot(
                 Guid.NewGuid(),
-                request.ActorUserId.Trim(),
+                actor.DiscordUserId,
                 item.Name.Trim(),
                 item.Latitude,
                 item.Longitude,

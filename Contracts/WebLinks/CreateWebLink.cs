@@ -11,12 +11,10 @@ public static class CreateWebLink
     /// Web サイト情報の登録入力です。
     /// </summary>
     /// <param name="SpotId">Web サイト情報を追加するスポットの ID です。</param>
-    /// <param name="RegisteredByUserId">この Web サイト情報を登録するユーザーの ID です。</param>
     /// <param name="SiteName">表示用のサイト名です。</param>
     /// <param name="Url">外部サイトの URL です。</param>
     public sealed record Request(
         Guid SpotId,
-        string RegisteredByUserId,
         string SiteName,
         Uri Url);
 

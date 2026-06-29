@@ -242,18 +242,29 @@ public static class DiscordAuthEndpoints
         return Results.Ok(new AuthSession.LogoutResponse(LoggedOut: true));
     }
 
-    private static IResult Me(ClaimsPrincipal user)
+    private static IResult Me(
+        ClaimsPrincipal user,
+        IDiscordUserRepository users)
     {
         if (user.Identity?.IsAuthenticated != true)
         {
             return Results.Unauthorized();
         }
 
+        var discordUserId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(discordUserId) ||
+            !users.TryGetByDiscordUserId(discordUserId, out var currentUser))
+        {
+            return Results.Unauthorized();
+        }
+
         return Results.Ok(new AuthSession.CurrentUserResponse(
-            user.FindFirstValue("discord_user_id") ?? string.Empty,
-            user.FindFirstValue("discord_username") ?? string.Empty,
-            user.Identity.Name,
-            user.IsInRole("Admin")));
+            currentUser.DiscordUserId,
+            currentUser.Username,
+            currentUser.GlobalName,
+            currentUser.VRChatDisplayName,
+            !string.IsNullOrWhiteSpace(currentUser.VRChatDisplayName),
+            currentUser.IsAdmin));
     }
 
     private static async Task SignInAsync(HttpContext httpContext, DiscordUser user)

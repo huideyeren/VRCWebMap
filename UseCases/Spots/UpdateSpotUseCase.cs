@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Spots;
 
@@ -15,7 +16,9 @@ namespace VrcWebMap.Backend.UseCases.Spots;
 /// <summary>
 /// 既存スポットを更新するユースケースです。
 /// </summary>
-public sealed class UpdateSpotUseCase(ISpotRepository spots)
+public sealed class UpdateSpotUseCase(
+    ISpotRepository spots,
+    ICurrentActorAccessor currentActor)
     : IUseCase<UpdateSpot.Request, UpdateSpot.Response>
 {
     /// <summary>
@@ -28,13 +31,19 @@ public sealed class UpdateSpotUseCase(ISpotRepository spots)
         UpdateSpot.Request request,
         CancellationToken cancellationToken = default)
     {
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<UpdateSpot.Response>.Failure(actorError));
+        }
+
         if (!spots.TryGet(request.Id, out var existing))
         {
             var error = new KawaError(KawaErrorKind.NotFound, "スポットが見つかりません。");
             return Task.FromResult(KawaResult<UpdateSpot.Response>.Failure(error));
         }
 
-        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, request.ActorUserId, request.ActorIsAdmin))
+        if (!SpotAuthorization.CanMutate(existing.RegisteredByUserId, actor!.DiscordUserId, actor.IsAdmin))
         {
             var error = new KawaError(KawaErrorKind.Forbidden, "スポットを変更する権限がありません。");
             return Task.FromResult(KawaResult<UpdateSpot.Response>.Failure(error));

@@ -11,10 +11,8 @@ public static class UpdateComment
     /// コメント更新に必要な入力です。
     /// </summary>
     /// <param name="Id">更新するコメントの ID です。</param>
-    /// <param name="ActorUserId">更新操作を行うユーザーの ID です。</param>
-    /// <param name="ActorIsAdmin">更新操作を行うユーザーが管理者かどうかです。</param>
     /// <param name="Comments">更新後の Markdown コメント本文です。</param>
-    public sealed record Request(Guid Id, string ActorUserId, bool ActorIsAdmin, string Comments);
+    public sealed record Request(Guid Id, string Comments);
 
     /// <summary>
     /// 更新されたコメントを返すレスポンスです。

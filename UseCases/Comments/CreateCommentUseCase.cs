@@ -2,6 +2,7 @@ using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Comments;
 
@@ -16,7 +17,9 @@ namespace VrcWebMap.Backend.UseCases.Comments;
 /// <summary>
 /// スポットにコメントを追加するユースケースです。
 /// </summary>
-public sealed class CreateCommentUseCase(ISpotRepository spots)
+public sealed class CreateCommentUseCase(
+    ISpotRepository spots,
+    ICurrentActorAccessor currentActor)
     : IUseCase<CreateComment.Request, CreateComment.Response>
 {
     /// <summary>
@@ -26,6 +29,12 @@ public sealed class CreateCommentUseCase(ISpotRepository spots)
         CreateComment.Request request,
         CancellationToken cancellationToken = default)
     {
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<CreateComment.Response>.Failure(actorError));
+        }
+
         if (request.SpotId == Guid.Empty)
         {
             var error = new KawaError(KawaErrorKind.Validation, "スポット ID は必須です。");
@@ -38,17 +47,16 @@ public sealed class CreateCommentUseCase(ISpotRepository spots)
             return Task.FromResult(KawaResult<CreateComment.Response>.Failure(error));
         }
 
-        if (string.IsNullOrWhiteSpace(request.RegisteredByUserId) ||
-            string.IsNullOrWhiteSpace(request.Comments))
+        if (string.IsNullOrWhiteSpace(request.Comments))
         {
-            var error = new KawaError(KawaErrorKind.Validation, "登録者 ID とコメント本文は必須です。");
+            var error = new KawaError(KawaErrorKind.Validation, "コメント本文は必須です。");
             return Task.FromResult(KawaResult<CreateComment.Response>.Failure(error));
         }
 
         var comment = new Comment(
             Guid.NewGuid(),
             request.SpotId,
-            request.RegisteredByUserId.Trim(),
+            actor!.DiscordUserId,
             request.Comments.Trim());
 
         spots.UpsertComment(comment);

@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.WebLinks;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.WebLinks;
 
@@ -12,17 +13,25 @@ namespace VrcWebMap.Backend.UseCases.WebLinks;
     Tags = new[] { "WebLinks" })]
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "Web サイト情報が見つかりません。")]
 [KawaErrorResponse(KawaErrorKind.Forbidden, Description = "Web サイト情報を削除する権限がありません。")]
-public sealed class DeleteWebLinkUseCase(ISpotRepository spots)
+public sealed class DeleteWebLinkUseCase(
+    ISpotRepository spots,
+    ICurrentActorAccessor currentActor)
     : IUseCase<DeleteWebLink.Request, DeleteWebLink.Response>
 {
     public Task<KawaResult<DeleteWebLink.Response>> ExecuteAsync(DeleteWebLink.Request request, CancellationToken cancellationToken = default)
     {
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<DeleteWebLink.Response>.Failure(actorError));
+        }
+
         if (!spots.TryGetWebLink(request.Id, out var existing))
         {
             return Task.FromResult(KawaResult<DeleteWebLink.Response>.Failure(new KawaError(KawaErrorKind.NotFound, "Web サイト情報が見つかりません。")));
         }
 
-        if (!SpotAuthorization.CanDelete(request.ActorIsAdmin))
+        if (!SpotAuthorization.CanDelete(actor!.IsAdmin))
         {
             return Task.FromResult(KawaResult<DeleteWebLink.Response>.Failure(new KawaError(KawaErrorKind.Forbidden, "Web サイト情報を削除する権限がありません。")));
         }

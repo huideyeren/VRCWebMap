@@ -3,6 +3,7 @@ using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.Tests.TestDoubles;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.Tests.UseCases.Spots;
 
@@ -13,9 +14,9 @@ public sealed class DeleteSpotUseCaseTests
     {
         var spot = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
         var repository = new FakeSpotRepository(spot);
-        var useCase = new DeleteSpotUseCase(repository);
+        var useCase = CreateUseCase(repository, "admin-user", isAdmin: true);
 
-        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id, "admin-user", ActorIsAdmin: true));
+        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id));
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
@@ -29,9 +30,9 @@ public sealed class DeleteSpotUseCaseTests
     {
         var spot = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
         var repository = new FakeSpotRepository(spot);
-        var useCase = new DeleteSpotUseCase(repository);
+        var useCase = CreateUseCase(repository, "owner-user");
 
-        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id, "owner-user", ActorIsAdmin: false));
+        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id));
 
         Assert.True(result.IsFailure);
         Assert.NotNull(result.Error);
@@ -45,9 +46,9 @@ public sealed class DeleteSpotUseCaseTests
     {
         var missingId = Guid.NewGuid();
         var repository = new FakeSpotRepository();
-        var useCase = new DeleteSpotUseCase(repository);
+        var useCase = CreateUseCase(repository, "owner-user");
 
-        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(missingId, "owner-user", ActorIsAdmin: false));
+        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(missingId));
 
         Assert.True(result.IsFailure);
         Assert.NotNull(result.Error);
@@ -61,9 +62,9 @@ public sealed class DeleteSpotUseCaseTests
     {
         var spot = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
         var repository = new FakeSpotRepository(spot);
-        var useCase = new DeleteSpotUseCase(repository);
+        var useCase = CreateUseCase(repository, "other-user");
 
-        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id, "other-user", ActorIsAdmin: false));
+        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id));
 
         Assert.True(result.IsFailure);
         Assert.NotNull(result.Error);
@@ -82,9 +83,9 @@ public sealed class DeleteSpotUseCaseTests
             "owner-user",
             "公式サイト",
             new Uri("https://example.com")));
-        var useCase = new DeleteSpotUseCase(repository);
+        var useCase = CreateUseCase(repository, "admin-user", isAdmin: true);
 
-        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id, "admin-user", ActorIsAdmin: true));
+        var result = await useCase.ExecuteAsync(new DeleteSpot.Request(spot.Id));
 
         Assert.True(result.IsFailure);
         Assert.NotNull(result.Error);
@@ -92,4 +93,12 @@ public sealed class DeleteSpotUseCaseTests
         Assert.True(repository.Exists(spot.Id));
         Assert.DoesNotContain(spot.Id, repository.DeletedSpotIds);
     }
+
+    private static DeleteSpotUseCase CreateUseCase(
+        FakeSpotRepository repository,
+        string userId,
+        bool isAdmin = false) =>
+        new(
+            repository,
+            new FakeCurrentActorAccessor(new CurrentActor(userId, isAdmin, HasVRChatDisplayName: true)));
 }

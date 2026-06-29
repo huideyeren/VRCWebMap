@@ -3,6 +3,7 @@ using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.Tests.TestDoubles;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.Tests.UseCases.Spots;
 
@@ -13,11 +14,9 @@ public sealed class UpdateSpotUseCaseTests
     {
         var existing = new Spot(Guid.NewGuid(), "owner-user", "古い名前", 35, 139, AreaCodes.Japan.Tokyo, "古い説明");
         var repository = new FakeSpotRepository(existing);
-        var useCase = new UpdateSpotUseCase(repository);
+        var useCase = CreateUseCase(repository, "owner-user");
         var request = new UpdateSpot.Request(
             existing.Id,
-            "owner-user",
-            ActorIsAdmin: false,
             "  新しい名前  ",
             35.681236,
             139.767125,
@@ -43,8 +42,8 @@ public sealed class UpdateSpotUseCaseTests
     public async Task ExecuteAsync_MissingSpot_ReturnsNotFound()
     {
         var repository = new FakeSpotRepository();
-        var useCase = new UpdateSpotUseCase(repository);
-        var request = new UpdateSpot.Request(Guid.NewGuid(), "owner-user", ActorIsAdmin: false, "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
+        var useCase = CreateUseCase(repository, "owner-user");
+        var request = new UpdateSpot.Request(Guid.NewGuid(), "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
 
         var result = await useCase.ExecuteAsync(request);
 
@@ -60,8 +59,8 @@ public sealed class UpdateSpotUseCaseTests
     {
         var existing = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
         var repository = new FakeSpotRepository(existing);
-        var useCase = new UpdateSpotUseCase(repository);
-        var request = new UpdateSpot.Request(existing.Id, "owner-user", ActorIsAdmin: false, "", 35, 139, AreaCodes.Japan.Tokyo, "説明");
+        var useCase = CreateUseCase(repository, "owner-user");
+        var request = new UpdateSpot.Request(existing.Id, "", 35, 139, AreaCodes.Japan.Tokyo, "説明");
 
         var result = await useCase.ExecuteAsync(request);
 
@@ -77,8 +76,8 @@ public sealed class UpdateSpotUseCaseTests
     {
         var existing = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
         var repository = new FakeSpotRepository(existing);
-        var useCase = new UpdateSpotUseCase(repository);
-        var request = new UpdateSpot.Request(existing.Id, "other-user", ActorIsAdmin: false, "更新", 35, 139, AreaCodes.Japan.Tokyo, "説明");
+        var useCase = CreateUseCase(repository, "other-user");
+        var request = new UpdateSpot.Request(existing.Id, "更新", 35, 139, AreaCodes.Japan.Tokyo, "説明");
 
         var result = await useCase.ExecuteAsync(request);
 
@@ -93,12 +92,20 @@ public sealed class UpdateSpotUseCaseTests
     {
         var existing = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
         var repository = new FakeSpotRepository(existing);
-        var useCase = new UpdateSpotUseCase(repository);
-        var request = new UpdateSpot.Request(existing.Id, "admin-user", ActorIsAdmin: true, "更新", 35, 139, AreaCodes.Japan.Tokyo, "説明");
+        var useCase = CreateUseCase(repository, "admin-user", isAdmin: true);
+        var request = new UpdateSpot.Request(existing.Id, "更新", 35, 139, AreaCodes.Japan.Tokyo, "説明");
 
         var result = await useCase.ExecuteAsync(request);
 
         Assert.True(result.IsSuccess);
         Assert.Single(repository.SavedSpots);
     }
+
+    private static UpdateSpotUseCase CreateUseCase(
+        FakeSpotRepository repository,
+        string userId,
+        bool isAdmin = false) =>
+        new(
+            repository,
+            new FakeCurrentActorAccessor(new CurrentActor(userId, isAdmin, HasVRChatDisplayName: true)));
 }

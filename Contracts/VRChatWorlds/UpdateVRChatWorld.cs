@@ -11,8 +11,6 @@ public static class UpdateVRChatWorld
     /// VRChat ワールド情報更新に必要な入力です。
     /// </summary>
     /// <param name="Id">更新する VRChat ワールド情報の ID です。</param>
-    /// <param name="ActorUserId">更新操作を行うユーザーの ID です。</param>
-    /// <param name="ActorIsAdmin">更新操作を行うユーザーが管理者かどうかです。</param>
     /// <param name="VRChatWorldId">更新後の VRChat world ID です。</param>
     /// <param name="Name">更新後の VRChat ワールド名です。</param>
     /// <param name="RecommendedCapacity">更新後の推奨収容人数です。</param>
@@ -24,8 +22,6 @@ public static class UpdateVRChatWorld
     /// <param name="IsPrivate">private ワールドとしてポータル JSON に出力する場合は <c>true</c> です。</param>
     public sealed record Request(
         Guid Id,
-        string ActorUserId,
-        bool ActorIsAdmin,
         string VRChatWorldId,
         string Name,
         int RecommendedCapacity,

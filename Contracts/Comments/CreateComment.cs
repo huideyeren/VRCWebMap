@@ -11,11 +11,9 @@ public static class CreateComment
     /// コメントの登録入力です。
     /// </summary>
     /// <param name="SpotId">コメントを追加するスポットの ID です。</param>
-    /// <param name="RegisteredByUserId">このコメントを登録するユーザーの ID です。</param>
     /// <param name="Comments">Markdown を想定したコメント本文です。</param>
     public sealed record Request(
         Guid SpotId,
-        string RegisteredByUserId,
         string Comments);
 
     /// <summary>
