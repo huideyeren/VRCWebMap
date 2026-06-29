@@ -67,10 +67,13 @@ verify the user's membership in `Discord:RequiredGuildId` through the Discord
 API, then pass only the verified result to `RegisterDiscordUserUseCase`. Do not
 trust guild membership values submitted directly by a browser client.
 
-Users with the Discord role named `マップ管理者` are treated as application
-administrators. Discord member data contains role IDs, so the transport uses
-`Discord:BotToken` to fetch guild roles and resolve `Discord:AdminRoleName`
-before setting the local admin flag.
+Initial administrators are configured by immutable Discord user ID through
+`Discord:InitialAdminUserIds`. Administrators can then grant or revoke
+administrator status from `/admin.html`. A Discord Bot is not required.
+
+After login, users register their unique VRChat Display Name. Reading remains
+available before registration, but creating or editing map content requires a
+registered VRChat Display Name.
 
 In the Development environment, Discord OAuth may be unavailable. The backend
 therefore exposes development-only sample users:
@@ -92,15 +95,14 @@ http://localhost:5021/auth/discord/callback
 ```
 
 For local development, set the following configuration values with environment
-variables or user secrets. Do not commit real client secrets or bot tokens.
+variables or user secrets. Do not commit real client secrets.
 
 ```text
 Discord__ClientId=<discord-application-client-id>
 Discord__ClientSecret=<discord-application-client-secret>
 Discord__RedirectUri=http://localhost:5021/auth/discord/callback
 Discord__RequiredGuildId=<discord-guild-id>
-Discord__BotToken=<discord-bot-token>
-Discord__AdminRoleName=マップ管理者
+Discord__InitialAdminUserIds__0=<initial-administrator-discord-user-id>
 ```
 
 The OAuth login URL should request these scopes:
@@ -109,20 +111,9 @@ The OAuth login URL should request these scopes:
 identify guilds.members.read
 ```
 
-When generating the Discord URL used to invite the application bot to the
-required guild, include the `bot` scope. The login URL and the bot invitation URL
-serve different purposes: `identify` and `guilds.members.read` are for user
-login and membership checks, while `bot` is required so the bot can join the
-guild and later resolve guild roles for administrator detection.
-
-```text
-bot
-```
-
-The bot token is required only for resolving the administrator role by name. The
-bot must be a member of the required guild and must be able to read guild roles.
-If `Discord:BotToken` is empty or the role cannot be resolved, users can still
-log in as regular guild members, but no one is treated as an administrator.
+Do not add the `bot` scope to the login URL. Guild membership is checked with
+the user's OAuth access token, and application administrator status is managed
+inside VRC Web Map.
 
 ## Restore, Build, and Test
 
@@ -335,9 +326,12 @@ Discord OAuth transport は `identify` と `guilds.members.read` を要求し、
 `Discord:RequiredGuildId` への参加を確認してから、確認済みの結果だけを
 `RegisterDiscordUserUseCase` に渡します。ブラウザクライアントから送られたサーバー参加状態は信用しません。
 
-Discord の `マップ管理者` ロールを持つユーザーをアプリケーション管理者として扱います。
-Discord member data には role ID が入るため、transport は `Discord:BotToken` で guild roles を取得し、
-`Discord:AdminRoleName` に一致する role ID を解決してからローカルの管理者フラグを設定します。
+初期管理者は `Discord:InitialAdminUserIds` に不変の Discord ユーザー ID を設定して確立します。
+以後は `/admin.html` のユーザー管理から、管理者が他ユーザーの管理者権限を付与・解除します。
+Discord Bot のサーバー導入は不要です。
+
+ログイン後、利用者は一意の VRChat Display Name を手動登録します。未登録でも閲覧できますが、
+Spot と関連情報の登録・編集には VRChat 表示名の登録が必要です。
 
 Development 環境では Discord OAuth を使えない場合があります。そのため、開発環境限定で
 以下のサンプルユーザーを用意します。
@@ -357,16 +351,15 @@ Discord Developer Portal で Discord application を作成し、OAuth2 redirect 
 http://localhost:5021/auth/discord/callback
 ```
 
-ローカル開発では、環境変数または user secrets で以下を設定します。実際の client secret や
-bot token はコミットしません。
+ローカル開発では、環境変数または user secrets で以下を設定します。実際の client secret は
+コミットしません。
 
 ```text
 Discord__ClientId=<discord-application-client-id>
 Discord__ClientSecret=<discord-application-client-secret>
 Discord__RedirectUri=http://localhost:5021/auth/discord/callback
 Discord__RequiredGuildId=<discord-guild-id>
-Discord__BotToken=<discord-bot-token>
-Discord__AdminRoleName=マップ管理者
+Discord__InitialAdminUserIds__0=<initial-administrator-discord-user-id>
 ```
 
 OAuth login URL では以下の scope を要求します。
@@ -375,18 +368,8 @@ OAuth login URL では以下の scope を要求します。
 identify guilds.members.read
 ```
 
-Discord application の Bot を対象サーバーへ招待する URL を生成する場合は、`bot` scope
-も含めます。ログイン URL と Bot 招待 URL は役割が異なります。`identify` と
-`guilds.members.read` はユーザーログインとサーバー参加確認に使い、`bot` は Bot を
-サーバーへ参加させ、管理者判定で guild roles を解決できるようにするために必要です。
-
-```text
-bot
-```
-
-Bot token は、管理者ロールを名前から解決するために必要です。Bot は対象 Discord サーバーに参加しており、
-guild roles を読み取れる必要があります。`Discord:BotToken` が空、またはロールを解決できない場合でも、
-通常のサーバー参加ユーザーとしてログインできますが、管理者としては扱われません。
+ログイン URL に `bot` scope は追加しません。Discord サーバー参加確認はユーザーのOAuth access tokenで行い、
+アプリケーション管理者権限はVRC Web Map内で管理します。
 
 ## Restore / Build / Test
 

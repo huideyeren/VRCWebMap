@@ -45,12 +45,13 @@
 - `Spot`、`VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の更新・削除は、管理者または対象データを登録したユーザーだけに許可する。
 - `Spot` に紐づく `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` が1件でも存在する場合、`Spot` の削除は `Conflict` として拒否する。関連データを先に削除してから `Spot` を削除する。
 - 仮フロントエンドでは、`/auth/me` が `isAdmin: true` を返す場合のみ管理者編集パネルを表示し、各データの更新・削除 UI を提供する。
-- 認証基盤が未実装の間、更新・削除 request には `ActorUserId` と `ActorIsAdmin` を明示的に含める。将来 Discord 認証を実装したら、この値は transport adapter 側で認証情報から組み立てる。
+- 書き込み request に `ActorUserId`、`ActorIsAdmin`、`RegisteredByUserId` を含めない。現在ユーザーは transport adapter が cookie session の Discord ユーザー ID からDBの最新状態を解決し、`ICurrentActorAccessor` 経由で UseCase に渡す。
 - ユーザー登録とログインは Discord アカウント連携を想定する。
 - アプリケーションを利用できるユーザーは、設定された Discord サーバーに参加している Discord ユーザーに限定する。
 - Discord OAuth では `identify` と `guilds.members.read` scope を使い、transport adapter が Discord API で対象サーバー参加を確認する。
-- Discord の `マップ管理者` ロールを持つユーザーをアプリケーション管理者として扱う。
-- Discord member API が返すのは role ID なので、transport adapter は Bot token で guild roles を取得し、`Discord:AdminRoleName` に一致する role ID を解決して管理者判定する。
+- 初期管理者は `Discord:InitialAdminUserIds` に設定した Discord ユーザー ID で確立する。Discord Bot と guild role は管理者判定に使わない。
+- 初期管理者以外の管理者権限は、管理者が `/admin.html` のユーザー管理から付与・解除する。
+- 利用者は一意の VRChat Display Name を手動登録する。未登録でも閲覧できるが、Spot と関連情報の登録・更新・削除はできない。
 - Discord API の確認結果だけを `RegisterDiscordUserUseCase` に渡す。クライアントから自己申告された参加状態を信用しない。
 - Development 環境では Discord OAuth を使えない場合があるため、`/auth/dev/login/admin` と `/auth/dev/login/user` で開発用サンプルユーザーを登録・ログインできるようにする。
 - 開発用サンプルユーザーは `dev-admin-user`（管理者）と `dev-general-user`（一般ユーザー）とする。これらの endpoint は Development 環境でのみ登録し、production では公開しない。
