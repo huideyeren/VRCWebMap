@@ -42,7 +42,7 @@ function App() {
     const [isDownloadingPortal, setIsDownloadingPortal] = useState(false);
     const spotCount = spots.length;
     const actorUserId = getCurrentUserId(currentUser);
-    const registrantName = currentUser?.displayName ?? currentUser?.username;
+    const registrantName = getUserDisplayName(currentUser);
 
     useEffect(() => {
         loadCurrentUser().then(setCurrentUser).catch(() => setCurrentUser(null));
@@ -54,9 +54,6 @@ function App() {
 
     useEffect(() => {
         currentUserRef.current = currentUser;
-        if (!currentUser?.isAdmin && screen === "admin") {
-            setScreen("map");
-        }
     }, [currentUser, screen]);
 
     useEffect(() => {
@@ -75,8 +72,10 @@ function App() {
         }).addTo(map);
 
         map.on("contextmenu", (event) => {
-            if (!currentUserRef.current) {
-                setMessage("Spot の登録にはログインが必要です。");
+            if (!currentUserRef.current?.hasVRChatDisplayName) {
+                setMessage(currentUserRef.current
+                    ? "Spot の登録にはVRChat表示名の登録が必要です。"
+                    : "Spot の登録にはログインが必要です。");
                 return;
             }
 
@@ -125,8 +124,8 @@ function App() {
     }, [spots]);
 
     const panelTitle = useMemo(() => {
-        if (screen === "admin") {
-            return "管理用画面";
+        if (screen === "profile") {
+            return "プロフィール設定";
         }
 
         if (draft) {
@@ -269,8 +268,10 @@ function App() {
             return;
         }
 
-        if (!currentUser) {
-            setMessage("Spot の登録にはログインが必要です。");
+        if (!currentUser?.hasVRChatDisplayName) {
+            setMessage(currentUser
+                ? "Spot の登録にはVRChat表示名の登録が必要です。"
+                : "Spot の登録にはログインが必要です。");
             return;
         }
 
@@ -346,13 +347,13 @@ function App() {
         }
     }
 
-    function openAdminScreen() {
-        if (!currentUser?.isAdmin) {
+    function openProfileScreen() {
+        if (!currentUser) {
             return;
         }
 
         setDraft(null);
-        setScreen("admin");
+        setScreen("profile");
         setMessage("");
     }
 
@@ -395,7 +396,7 @@ function App() {
                 compact: true
             }),
             React.createElement("div", { className: "top-menu-controls" },
-                currentUser ? React.createElement("span", { className: "user-chip" }, currentUser.displayName ?? currentUser.username) : null,
+                currentUser ? React.createElement("span", { className: "user-chip" }, getUserDisplayName(currentUser)) : null,
                 React.createElement("details", { className: "hamburger-menu" },
                     React.createElement("summary", { "aria-label": "メニューを開く" },
                         React.createElement("span", { className: "hamburger-icon", "aria-hidden": "true" },
@@ -412,10 +413,14 @@ function App() {
                         React.createElement("hr", null),
                         currentUser
                             ? React.createElement(React.Fragment, null,
-                                currentUser.isAdmin ? React.createElement("button", {
+                                React.createElement("button", {
                                     type: "button",
-                                    className: screen === "admin" ? "" : "secondary",
-                                    onClick: openAdminScreen
+                                    className: screen === "profile" ? "" : "secondary",
+                                    onClick: openProfileScreen
+                                }, "プロフィール設定"),
+                                currentUser.isAdmin ? React.createElement("a", {
+                                    className: "menu-button secondary",
+                                    href: "/admin.html"
                                 }, "管理用画面") : null,
                                 React.createElement("button", {
                                     type: "button",
@@ -465,24 +470,22 @@ function App() {
             React.createElement("header", { className: "panel-header" },
                 React.createElement("p", { className: "eyebrow" }, `${spotCount} spots`),
                 React.createElement("h2", null, panelTitle),
-                React.createElement("p", { className: "meta" }, currentUser ? `ログイン中: ${currentUser.displayName ?? currentUser.username}` : "未ログイン: 書き込みにはログインが必要です。")
+                React.createElement("p", { className: "meta" }, currentUser ? `ログイン中: ${getUserDisplayName(currentUser)}` : "未ログイン: 書き込みにはログインが必要です。")
             ),
             React.createElement("div", { className: "panel-body" },
                 message ? React.createElement("p", { className: "notice", role: "status" }, message) : null,
-                screen === "admin" ? React.createElement(AdminScreen, {
-                    spots,
-                    selectedSpot,
-                    selectedDetails,
-                    areas,
+                screen === "profile" ? React.createElement(ProfileSettings, {
                     currentUser,
-                    onSelectSpot: (spot) => selectSpot(spot, { screen: "admin" }),
-                    onChanged: reloadAfterSpotMutation,
-                    onDeleted: clearDeletedSpot,
-                    onBack: () => setScreen("map"),
-                    onReload: refreshSpots,
+                    onUpdated: async () => {
+                        const user = await loadCurrentUser();
+                        setCurrentUser(user);
+                        setScreen("map");
+                        setMessage("VRChat表示名を保存しました。");
+                    },
+                    onCancel: () => setScreen("map"),
                     onMessage: setMessage
                 }) : null,
-                screen !== "admin" && draft ? React.createElement(SpotForm, {
+                screen !== "profile" && draft ? React.createElement(SpotForm, {
                     draft,
                     areas,
                     isSaving,
@@ -493,7 +496,7 @@ function App() {
                         setMessage("");
                     }
                 }) : null,
-                screen !== "admin" && !draft && selectedSpot ? React.createElement(SpotDetails, {
+                screen !== "profile" && !draft && selectedSpot ? React.createElement(SpotDetails, {
                     spot: selectedSpot,
                     details: selectedDetails,
                     areas,
@@ -505,8 +508,12 @@ function App() {
                     onSpotDeleted: clearDeletedSpot,
                     onMessage: setMessage
                 }) : null,
-                screen !== "admin" && !draft && !selectedSpot ? React.createElement(EmptyState, { onReload: refreshSpots }) : null,
-                screen !== "admin" ? React.createElement(SpotList, { spots, selectedSpotId: selectedSpot?.id, onSelect: selectSpot }) : null
+                screen !== "profile" && !draft && !selectedSpot ? React.createElement(EmptyState, {
+                    onReload: refreshSpots,
+                    currentUser,
+                    onOpenProfile: openProfileScreen
+                }) : null,
+                screen !== "profile" ? React.createElement(SpotList, { spots, selectedSpotId: selectedSpot?.id, onSelect: selectSpot }) : null
             )
         )
     );
@@ -760,8 +767,12 @@ function SpotDetails({ spot, details, areas, currentUser, registeredByUserId, re
         renderMarkdown(spot.description),
         React.createElement("p", { className: "meta" }, `座標: ${formatCoordinate(spot.latitude)}, ${formatCoordinate(spot.longitude)}`),
         React.createElement("p", { className: "meta" }, `地域: ${formatAreaName(spot.areaCode, areas)}`),
-        currentUser ? React.createElement(AddContentForms, { spot, registeredByUserId, registrantName, onCreated, onMessage }) : React.createElement(LoginRequiredNotice),
-        canEditSelectedDetails(currentUser, spot, worlds, placeInfos, webLinks, comments) ? React.createElement(AdminPanel, {
+        currentUser?.hasVRChatDisplayName
+            ? React.createElement(AddContentForms, { spot, registeredByUserId, registrantName, onCreated, onMessage })
+            : currentUser
+                ? React.createElement(ProfileRequiredNotice)
+                : React.createElement(LoginRequiredNotice),
+        currentUser?.hasVRChatDisplayName && canEditSelectedDetails(currentUser, spot, worlds, placeInfos, webLinks, comments) ? React.createElement(AdminPanel, {
             spot,
             worlds,
             placeInfos,
@@ -788,6 +799,57 @@ function LoginRequiredNotice() {
     );
 }
 
+function ProfileRequiredNotice() {
+    return React.createElement("div", { className: "content-form" },
+        React.createElement("strong", null, "VRChat表示名を登録してください"),
+        React.createElement("p", { className: "meta" }, "投稿・編集を行う前に、メニューの「プロフィール設定」からVRChatのDisplay Nameを登録してください。")
+    );
+}
+
+function ProfileSettings({ currentUser, onUpdated, onCancel, onMessage }) {
+    const [displayName, setDisplayName] = useState(currentUser?.vrChatDisplayName ?? "");
+    const [isSaving, setIsSaving] = useState(false);
+
+    async function submit(event) {
+        event.preventDefault();
+        setIsSaving(true);
+        onMessage("");
+
+        try {
+            await postJson("/users/profile", { vrChatDisplayName: displayName });
+            await onUpdated();
+        } catch (error) {
+            onMessage(error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    return React.createElement("section", { className: "card profile-settings" },
+        React.createElement("p", { className: "eyebrow" }, "Public identity"),
+        React.createElement("h3", null, "VRChat表示名"),
+        React.createElement("p", { className: "meta" }, `Discord: ${currentUser?.username ?? ""}`),
+        React.createElement("p", { className: "meta" }, "VRChat内で頭上に表示されるDisplay Nameを入力してください。4〜15文字で、他の利用者と同じ名前は登録できません。"),
+        React.createElement("form", { className: "form-grid", onSubmit: submit },
+            React.createElement("label", null,
+                "VRChat Display Name",
+                React.createElement("input", {
+                    value: displayName,
+                    minLength: 4,
+                    maxLength: 15,
+                    required: true,
+                    autoComplete: "off",
+                    onChange: (event) => setDisplayName(event.target.value)
+                })
+            ),
+            React.createElement("div", { className: "actions" },
+                React.createElement("button", { type: "submit", disabled: isSaving }, isSaving ? "保存中..." : "表示名を保存"),
+                React.createElement("button", { type: "button", className: "secondary", onClick: onCancel }, "戻る")
+            )
+        )
+    );
+}
+
 function RelatedSection({ title, items, render }) {
     return React.createElement("div", { className: "related-list" },
         React.createElement("h3", null, title),
@@ -799,6 +861,10 @@ function RelatedSection({ title, items, render }) {
 
 function getCurrentUserId(user) {
     return user?.discordUserId ?? user?.userId ?? "";
+}
+
+function getUserDisplayName(user) {
+    return user?.vrChatDisplayName ?? user?.displayName ?? user?.username ?? "";
 }
 
 function canEditItem(item, user) {
@@ -1220,10 +1286,13 @@ function SearchPanel({ query, resultCount, onChange, onSubmit, onClear, compact 
     );
 }
 
-function EmptyState({ onReload }) {
+function EmptyState({ onReload, currentUser, onOpenProfile }) {
     return React.createElement("section", { className: "card" },
         React.createElement("h3", null, "Spot を選択してください"),
         React.createElement("p", { className: "meta" }, "地図上の marker をクリックすると詳細が表示されます。新しい Spot は地図を右クリックして登録します。"),
+        currentUser && !currentUser.hasVRChatDisplayName
+            ? React.createElement("button", { type: "button", onClick: onOpenProfile }, "VRChat表示名を登録")
+            : null,
         React.createElement("button", { type: "button", className: "secondary", onClick: onReload }, "Spot を再読み込み")
     );
 }
