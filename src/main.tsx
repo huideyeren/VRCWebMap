@@ -1,10 +1,8 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import markerIcon2xUrl from "leaflet/dist/images/marker-icon-2x.png?url";
-import markerIconUrl from "leaflet/dist/images/marker-icon.png?url";
-import markerShadowUrl from "leaflet/dist/images/marker-shadow.png?url";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { createSpotIcon, getCurrentPosition } from "./map-ui";
 
 type SelectSpotOptions = {
     updateUrl?: boolean;
@@ -14,12 +12,6 @@ type SelectSpotOptions = {
 
 const TokyoStation = [35.681236, 139.767125];
 const DefaultAreaCode = 13;
-
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: markerIcon2xUrl,
-    iconUrl: markerIconUrl,
-    shadowUrl: markerShadowUrl
-});
 
 function App() {
     const mapElementRef = useRef(null);
@@ -40,6 +32,8 @@ function App() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [isDownloadingPortal, setIsDownloadingPortal] = useState(false);
+    const [isMapBrandVisible, setIsMapBrandVisible] = useState(true);
+    const [isLocating, setIsLocating] = useState(false);
     const spotCount = spots.length;
     const registrantName = getUserDisplayName(currentUser);
 
@@ -114,7 +108,10 @@ function App() {
         markersRef.current.clear();
 
         for (const spot of spots) {
-            const marker = L.marker([spot.latitude, spot.longitude])
+            const marker = L.marker([spot.latitude, spot.longitude], {
+                icon: createSpotIcon(spot),
+                alt: `${spot.name}の地図ピン`
+            })
                 .addTo(map)
                 .bindPopup(`<strong>${escapeHtml(spot.name)}</strong><br>${escapeHtml(spot.description)}`);
             marker.on("click", () => selectSpot(spot));
@@ -156,7 +153,7 @@ function App() {
             }
         }
 
-        centerMapOnCurrentPosition();
+        centerMapOnCurrentPosition(false);
     }
 
     async function refreshSpots() {
@@ -196,23 +193,27 @@ function App() {
         centerMap([spot.latitude, spot.longitude], 15);
     }
 
-    function centerMapOnCurrentPosition() {
-        if (!navigator.geolocation) {
+    async function centerMapOnCurrentPosition(showError = true) {
+        if (isLocating) {
             return;
         }
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                centerMap([position.coords.latitude, position.coords.longitude], 13);
-            },
-            () => {
-                // 位置情報は任意。拒否や取得失敗時はデフォルト中心のままにする。
-            },
-            {
-                enableHighAccuracy: false,
-                maximumAge: 300000,
-                timeout: 5000
-            });
+        setIsLocating(true);
+        if (showError) {
+            setMessage("");
+        }
+
+        try {
+            const position = await getCurrentPosition();
+            centerMap([position.coords.latitude, position.coords.longitude], 13);
+        } catch (error) {
+            // 初期表示の位置情報は任意。明示ボタンで要求された場合だけ理由を通知します。
+            if (showError) {
+                setMessage(error.message);
+            }
+        } finally {
+            setIsLocating(false);
+        }
     }
 
     function centerMap(center, zoom) {
@@ -457,10 +458,27 @@ function App() {
             )
         ),
         React.createElement("section", { className: "map-frame" },
-            React.createElement("div", { className: "map-brand" },
+            isMapBrandVisible ? React.createElement("div", { className: "map-brand" },
+                React.createElement("button", {
+                    type: "button",
+                    className: "map-brand-close",
+                    "aria-label": "Spot Atlasの案内を閉じる",
+                    onClick: () => setIsMapBrandVisible(false)
+                }, "×"),
                 React.createElement("p", { className: "eyebrow" }, "VRC Web Map"),
                 React.createElement("h1", null, "Spot Atlas"),
                 React.createElement("p", { className: "hint" }, "地図を右クリックして Spot を登録。marker をクリックすると右ペインに詳細を表示します。")
+            ) : null,
+            React.createElement("button", {
+                type: "button",
+                className: "map-location-button",
+                disabled: isLocating,
+                onClick: () => centerMapOnCurrentPosition(true)
+            }, isLocating ? "現在地を取得中…" : "現在地に戻る"),
+            React.createElement("div", { className: "map-legend", "aria-label": "地図ピンの色" },
+                React.createElement("span", null, React.createElement("i", { className: "legend-dot default" }), "通常Spot"),
+                React.createElement("span", null, React.createElement("i", { className: "legend-dot place" }), "施設情報あり"),
+                React.createElement("span", null, React.createElement("i", { className: "legend-dot world" }), "VRChatワールドあり")
             ),
             React.createElement("div", { id: "map", ref: mapElementRef, "aria-label": "Spot map" })
         ),
@@ -500,7 +518,10 @@ function App() {
                     areas,
                     currentUser,
                     registrantName,
-                    onCreated: reloadSelectedSpot,
+                    onCreated: async (spotId) => {
+                        await reloadSelectedSpot(spotId);
+                        await refreshSpots();
+                    },
                     onSpotUpdated: reloadAfterSpotMutation,
                     onSpotDeleted: clearDeletedSpot,
                     onMessage: setMessage
