@@ -24,8 +24,13 @@ public sealed class SetUserAdminStatusUseCase(
         SetUserAdminStatus.Request request,
         CancellationToken cancellationToken = default)
     {
-        var actor = currentActor.GetCurrent();
-        if (actor?.IsAdmin != true)
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<SetUserAdminStatus.Response>.Failure(actorError));
+        }
+
+        if (!actor!.IsAdmin)
         {
             return Failure(KawaErrorKind.Forbidden, "管理者権限が必要です。");
         }

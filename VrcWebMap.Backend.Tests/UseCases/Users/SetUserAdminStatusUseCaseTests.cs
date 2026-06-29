@@ -39,6 +39,24 @@ public sealed class SetUserAdminStatusUseCaseTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_AdministratorWithoutVRChatDisplayName_ReturnsForbidden()
+    {
+        var repository = CreateRepository();
+        var useCase = new SetUserAdminStatusUseCase(
+            repository,
+            new FakeCurrentActorAccessor(new CurrentActor("admin", IsAdmin: true, HasVRChatDisplayName: false)),
+            Microsoft.Extensions.Options.Options.Create(new DiscordOptions
+            {
+                InitialAdminUserIds = ["admin"]
+            }));
+
+        var result = await useCase.ExecuteAsync(new SetUserAdminStatus.Request("user", IsAdmin: true));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(KawaErrorKind.Forbidden, result.Error!.Kind);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_InitialAdministratorDemotion_ReturnsConflict()
     {
         var repository = CreateRepository();
