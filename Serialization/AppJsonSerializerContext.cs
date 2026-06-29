@@ -29,6 +29,8 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(ListAreas.Response), TypeInfoPropertyName = "ListAreasResponse")]
 [JsonSerializable(typeof(ListSpots.Request), TypeInfoPropertyName = "ListSpotsRequest")]
 [JsonSerializable(typeof(ListSpots.Response), TypeInfoPropertyName = "ListSpotsResponse")]
+[JsonSerializable(typeof(ListSpots.Item), TypeInfoPropertyName = "ListSpotsItem")]
+[JsonSerializable(typeof(ListSpots.Item[]), TypeInfoPropertyName = "ListSpotsItemArray")]
 [JsonSerializable(typeof(GetSpot.Request), TypeInfoPropertyName = "GetSpotRequest")]
 [JsonSerializable(typeof(GetSpot.Response), TypeInfoPropertyName = "GetSpotResponse")]
 [JsonSerializable(typeof(CreateSpot.Request), TypeInfoPropertyName = "CreateSpotRequest")]

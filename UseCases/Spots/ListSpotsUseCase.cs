@@ -31,8 +31,26 @@ public sealed class ListSpotsUseCase(ISpotRepository spots)
         var listedSpots = terms.Length == 0
             ? allSpots
             : allSpots.Where(spot => MatchesAllTerms(spot, terms)).ToArray();
+        var worldSpotIds = spots.ListWorlds()
+            .Select(world => world.SpotId)
+            .ToHashSet();
+        var placeInfoSpotIds = spots.ListPlaceInfos()
+            .Select(placeInfo => placeInfo.SpotId)
+            .ToHashSet();
+        var items = listedSpots
+            .Select(spot => new ListSpots.Item(
+                spot.Id,
+                spot.RegisteredByUserId,
+                spot.Name,
+                spot.Latitude,
+                spot.Longitude,
+                spot.AreaCode,
+                spot.Description,
+                worldSpotIds.Contains(spot.Id),
+                placeInfoSpotIds.Contains(spot.Id)))
+            .ToArray();
 
-        var response = new ListSpots.Response(listedSpots);
+        var response = new ListSpots.Response(items);
         return Task.FromResult(KawaResult<ListSpots.Response>.Success(response));
     }
 

@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.Spots;
 
 /// <summary>
@@ -16,6 +14,17 @@ public static class ListSpots
     /// <summary>
     /// スポット一覧を返すレスポンスです。
     /// </summary>
-    /// <param name="Spots">管理対象のスポット一覧です。</param>
-    public sealed record Response(Spot[] Spots);
+    public sealed record Item(
+        Guid Id,
+        string RegisteredByUserId,
+        string Name,
+        double Latitude,
+        double Longitude,
+        int AreaCode,
+        string Description,
+        bool HasVRChatWorld,
+        bool HasPlaceInfo);
+
+    /// <param name="Spots">地図表示用metadataを含むスポット一覧です。</param>
+    public sealed record Response(Item[] Spots);
 }
