@@ -92,36 +92,6 @@ public sealed class DiscordApiClient(HttpClient http, IOptions<DiscordOptions> o
         return await JsonSerializer.DeserializeAsync<DiscordGuildMember>(stream, JsonOptions, cancellationToken);
     }
 
-    public async Task<bool> HasAdminRoleAsync(DiscordGuildMember member, CancellationToken cancellationToken)
-    {
-        if (member.Roles.Length == 0 ||
-            string.IsNullOrWhiteSpace(options.BotToken) ||
-            string.IsNullOrWhiteSpace(options.AdminRoleName))
-        {
-            return false;
-        }
-
-        using var request = new HttpRequestMessage(
-            HttpMethod.Get,
-            $"https://discord.com/api/v10/guilds/{Uri.EscapeDataString(options.RequiredGuildId)}/roles");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bot", options.BotToken);
-
-        using var response = await http.SendAsync(request, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            return false;
-        }
-
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var roles = await JsonSerializer.DeserializeAsync<DiscordGuildRole[]>(stream, JsonOptions, cancellationToken) ?? [];
-        var adminRoleIds = roles
-            .Where(role => string.Equals(role.Name, options.AdminRoleName, StringComparison.Ordinal))
-            .Select(role => role.Id)
-            .ToHashSet(StringComparer.Ordinal);
-
-        return member.Roles.Any(adminRoleIds.Contains);
-    }
-
     private static HttpRequestMessage CreateBearerRequest(HttpMethod method, string uri, string accessToken)
     {
         var request = new HttpRequestMessage(method, uri);
@@ -151,7 +121,3 @@ public sealed record DiscordCurrentUser(
 
 public sealed record DiscordGuildMember(
     string[] Roles);
-
-public sealed record DiscordGuildRole(
-    string Id,
-    string Name);

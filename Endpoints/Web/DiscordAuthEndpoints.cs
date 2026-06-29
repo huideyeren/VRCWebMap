@@ -35,7 +35,7 @@ public static class DiscordAuthEndpoints
             .WithName("DiscordCallback")
             .WithTags("Authentication")
             .WithSummary("Handle Discord OAuth callback")
-            .WithDescription("Discord OAuth code を検証し、対象 guild 参加と管理者ロールを server-side に確認して cookie session を作成します。")
+            .WithDescription("Discord OAuth code を検証し、対象 guild 参加を server-side に確認して cookie session を作成します。")
             .Produces(StatusCodes.Status302Found)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status403Forbidden)
@@ -144,7 +144,6 @@ public static class DiscordAuthEndpoints
 
         var guildMember = await discord.GetRequiredGuildMemberAsync(token.AccessToken, cancellationToken);
         var isGuildMember = guildMember is not null;
-        var isAdmin = guildMember is not null && await discord.HasAdminRoleAsync(guildMember, cancellationToken);
         var result = await registerUser.ExecuteAsync(
             new RegisterDiscordUser.Request(
                 currentUser.Id,
@@ -152,8 +151,7 @@ public static class DiscordAuthEndpoints
                 currentUser.GlobalName,
                 currentUser.Avatar,
                 options.Value.RequiredGuildId,
-                isGuildMember,
-                isAdmin),
+                isGuildMember),
             cancellationToken);
 
         if (result.IsFailure)
@@ -203,13 +201,11 @@ public static class DiscordAuthEndpoints
             "admin" => new DevelopmentSampleUser(
                 DiscordUserId: "dev-admin-user",
                 Username: "dev-admin",
-                GlobalName: "開発用マップ管理者",
-                IsAdmin: true),
+                GlobalName: "開発用マップ管理者"),
             "user" => new DevelopmentSampleUser(
                 DiscordUserId: "dev-general-user",
                 Username: "dev-user",
-                GlobalName: "開発用一般ユーザー",
-                IsAdmin: false),
+                GlobalName: "開発用一般ユーザー"),
             _ => null
         };
 
@@ -228,8 +224,7 @@ public static class DiscordAuthEndpoints
                 sampleUser.GlobalName,
                 AvatarHash: null,
                 requiredGuildId,
-                IsRequiredGuildMember: true,
-                sampleUser.IsAdmin),
+                IsRequiredGuildMember: true),
             cancellationToken);
 
         if (result.IsFailure)
@@ -315,6 +310,5 @@ public static class DiscordAuthEndpoints
     private sealed record DevelopmentSampleUser(
         string DiscordUserId,
         string Username,
-        string GlobalName,
-        bool IsAdmin);
+        string GlobalName);
 }

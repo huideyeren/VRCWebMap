@@ -1,6 +1,8 @@
 using Kawa.Abstractions;
+using Microsoft.Extensions.Options;
 using VrcWebMap.Backend.Contracts.Users;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.Options;
 
 namespace VrcWebMap.Backend.UseCases.Users;
 
@@ -15,7 +17,9 @@ namespace VrcWebMap.Backend.UseCases.Users;
 /// <summary>
 /// Discord ユーザーをアプリケーションユーザーとして登録または更新するユースケースです。
 /// </summary>
-public sealed class RegisterDiscordUserUseCase(IDiscordUserRepository users)
+public sealed class RegisterDiscordUserUseCase(
+    IDiscordUserRepository users,
+    IOptions<DiscordOptions> options)
     : IUseCase<RegisterDiscordUser.Request, RegisterDiscordUser.Response>
 {
     public Task<KawaResult<RegisterDiscordUser.Response>> ExecuteAsync(
@@ -43,9 +47,10 @@ public sealed class RegisterDiscordUserUseCase(IDiscordUserRepository users)
         var avatarHash = string.IsNullOrWhiteSpace(request.AvatarHash) ? null : request.AvatarHash.Trim();
         var requiredGuildId = request.RequiredGuildId.Trim();
 
-        var registeredAt = users.TryGetByDiscordUserId(discordUserId, out var existing)
-            ? existing.RegisteredAt
-            : now;
+        users.TryGetByDiscordUserId(discordUserId, out var existing);
+        var registeredAt = existing?.RegisteredAt ?? now;
+        var isInitialAdministrator = options.Value.InitialAdminUserIds
+            .Any(id => string.Equals(id?.Trim(), discordUserId, StringComparison.Ordinal));
 
         var user = new DiscordUser(
             discordUserId,
@@ -54,9 +59,11 @@ public sealed class RegisterDiscordUserUseCase(IDiscordUserRepository users)
             avatarHash,
             requiredGuildId,
             IsGuildMember: true,
-            request.IsAdmin,
+            IsAdmin: isInitialAdministrator || existing?.IsAdmin == true,
             registeredAt,
-            now);
+            now,
+            existing?.VRChatDisplayName,
+            existing?.NormalizedVRChatDisplayName);
 
         users.Upsert(user);
 
