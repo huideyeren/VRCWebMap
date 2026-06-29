@@ -41,7 +41,6 @@ function App() {
     const [isSaving, setIsSaving] = useState(false);
     const [isDownloadingPortal, setIsDownloadingPortal] = useState(false);
     const spotCount = spots.length;
-    const actorUserId = getCurrentUserId(currentUser);
     const registrantName = getUserDisplayName(currentUser);
 
     useEffect(() => {
@@ -280,7 +279,6 @@ function App() {
 
         try {
             const created = await createSpot({
-                registeredByUserId: actorUserId,
                 name: draft.name,
                 latitude: Number(draft.latitude),
                 longitude: Number(draft.longitude),
@@ -501,7 +499,6 @@ function App() {
                     details: selectedDetails,
                     areas,
                     currentUser,
-                    registeredByUserId: actorUserId,
                     registrantName,
                     onCreated: reloadSelectedSpot,
                     onSpotUpdated: reloadAfterSpotMutation,
@@ -566,7 +563,6 @@ function AdminScreen({ spots, selectedSpot, selectedDetails, areas, currentUser,
                     comments,
                     areas,
                     currentUser,
-                    actorUserId: getCurrentUserId(currentUser),
                     onChanged,
                     onDeleted,
                     onMessage
@@ -576,7 +572,7 @@ function AdminScreen({ spots, selectedSpot, selectedDetails, areas, currentUser,
     );
 }
 
-function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
+export function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
     const [file, setFile] = useState(null);
     const [defaultAreaCode, setDefaultAreaCode] = useState(DefaultAreaCode);
     const [preview, setPreview] = useState(null);
@@ -591,8 +587,6 @@ function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
         }
 
         return {
-            actorUserId: getCurrentUserId(currentUser),
-            actorIsAdmin: true,
             fileName: file.name,
             contentBase64: await readFileAsBase64(file),
             defaultAreaCode: Number(defaultAreaCode)
@@ -756,7 +750,7 @@ function SpotForm({ draft, areas, isSaving, onChange, onSubmit, onCancel, submit
     );
 }
 
-function SpotDetails({ spot, details, areas, currentUser, registeredByUserId, registrantName, onCreated, onSpotUpdated, onSpotDeleted, onMessage }) {
+function SpotDetails({ spot, details, areas, currentUser, registrantName, onCreated, onSpotUpdated, onSpotDeleted, onMessage }) {
     const worlds = details?.vrChatWorlds ?? [];
     const placeInfos = details?.placeInfos ?? [];
     const webLinks = details?.webLinks ?? [];
@@ -768,7 +762,7 @@ function SpotDetails({ spot, details, areas, currentUser, registeredByUserId, re
         React.createElement("p", { className: "meta" }, `座標: ${formatCoordinate(spot.latitude)}, ${formatCoordinate(spot.longitude)}`),
         React.createElement("p", { className: "meta" }, `地域: ${formatAreaName(spot.areaCode, areas)}`),
         currentUser?.hasVRChatDisplayName
-            ? React.createElement(AddContentForms, { spot, registeredByUserId, registrantName, onCreated, onMessage })
+            ? React.createElement(AddContentForms, { spot, registrantName, onCreated, onMessage })
             : currentUser
                 ? React.createElement(ProfileRequiredNotice)
                 : React.createElement(LoginRequiredNotice),
@@ -780,7 +774,6 @@ function SpotDetails({ spot, details, areas, currentUser, registeredByUserId, re
             comments,
             areas,
             currentUser,
-            actorUserId: getCurrentUserId(currentUser),
             onChanged: onSpotUpdated,
             onDeleted: onSpotDeleted,
             onMessage
@@ -859,7 +852,7 @@ function RelatedSection({ title, items, render }) {
     );
 }
 
-function getCurrentUserId(user) {
+export function getCurrentUserId(user) {
     return user?.discordUserId ?? user?.userId ?? "";
 }
 
@@ -886,7 +879,7 @@ function canEditSelectedDetails(user, spot, worlds, placeInfos, webLinks, commen
     ));
 }
 
-function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, onMessage }) {
+function AddContentForms({ spot, registrantName, onCreated, onMessage }) {
     const [kind, setKind] = useState("world");
     const [isSaving, setIsSaving] = useState(false);
     const [world, setWorld] = useState(createEmptyWorld());
@@ -903,7 +896,6 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
             if (kind === "world") {
                 await createVRChatWorld({
                     spotId: spot.id,
-                    registeredByUserId,
                     vrChatWorldId: normalizeWorldId(world.vrChatWorldId),
                     name: world.name,
                     recommendedCapacity: Number(world.recommendedCapacity),
@@ -918,7 +910,6 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
             } else if (kind === "placeInfo") {
                 await createPlaceInfo({
                     spotId: spot.id,
-                    registeredByUserId,
                     name: placeInfo.name,
                     address: placeInfo.address,
                     businessInformation: placeInfo.businessInformation
@@ -927,7 +918,6 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
             } else if (kind === "webLink") {
                 await createWebLink({
                     spotId: spot.id,
-                    registeredByUserId,
                     siteName: webLink.siteName,
                     url: webLink.url
                 });
@@ -935,7 +925,6 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
             } else {
                 await createComment({
                     spotId: spot.id,
-                    registeredByUserId,
                     comments: comment
                 });
                 setComment("");
@@ -966,8 +955,7 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
     );
 }
 
-function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, currentUser, actorUserId, onChanged, onDeleted, onMessage }) {
-    const actor = { actorUserId, actorIsAdmin: currentUser.isAdmin };
+export function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, currentUser, onChanged, onDeleted, onMessage }) {
     const canDelete = currentUser.isAdmin;
     const editableWorlds = editableItems(worlds, currentUser);
     const editablePlaceInfos = editableItems(placeInfos, currentUser);
@@ -980,15 +968,15 @@ function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, curre
         React.createElement("p", { className: "meta" }, currentUser.isAdmin
             ? "管理者として Spot と関連データを編集・削除できます。"
             : "あなたが登録した Spot と関連データを編集できます。削除は管理者のみ可能です。"),
-        canEditItem(spot, currentUser) ? React.createElement(AdminSpotEditor, { spot, areas, actor, canDelete, onChanged, onDeleted, onMessage }) : null,
-        React.createElement(AdminWorldSection, { items: editableWorlds, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminPlaceInfoSection, { items: editablePlaceInfos, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminWebLinkSection, { items: editableWebLinks, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminCommentSection, { items: editableComments, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage })
+        canEditItem(spot, currentUser) ? React.createElement(AdminSpotEditor, { spot, areas, canDelete, onChanged, onDeleted, onMessage }) : null,
+        React.createElement(AdminWorldSection, { items: editableWorlds, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminPlaceInfoSection, { items: editablePlaceInfos, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminWebLinkSection, { items: editableWebLinks, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
+        React.createElement(AdminCommentSection, { items: editableComments, canDelete, onChanged: () => onChanged(spot.id), onMessage })
     );
 }
 
-function AdminSpotEditor({ spot, areas, actor, canDelete, onChanged, onDeleted, onMessage }) {
+function AdminSpotEditor({ spot, areas, canDelete, onChanged, onDeleted, onMessage }) {
     const [draft, setDraft] = useState(createSpotDraft(spot));
     const [isSaving, setIsSaving] = useState(false);
 
@@ -1004,7 +992,6 @@ function AdminSpotEditor({ spot, areas, actor, canDelete, onChanged, onDeleted, 
         try {
             const updated = await updateSpot({
                 id: spot.id,
-                ...actor,
                 name: draft.name,
                 latitude: Number(draft.latitude),
                 longitude: Number(draft.longitude),
@@ -1029,7 +1016,7 @@ function AdminSpotEditor({ spot, areas, actor, canDelete, onChanged, onDeleted, 
         onMessage("");
 
         try {
-            await deleteSpot({ id: spot.id, ...actor });
+            await deleteSpot({ id: spot.id });
             await onDeleted();
             onMessage("Spot を削除しました。");
         } catch (error) {
@@ -1054,7 +1041,7 @@ function AdminSpotEditor({ spot, areas, actor, canDelete, onChanged, onDeleted, 
     );
 }
 
-function AdminWorldSection({ items, actor, canDelete, onChanged, onMessage }) {
+function AdminWorldSection({ items, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "VRChat Worlds",
         items,
@@ -1063,7 +1050,6 @@ function AdminWorldSection({ items, actor, canDelete, onChanged, onMessage }) {
         renderForm: (draft, setDraft) => React.createElement(WorldFields, { value: draft, onChange: setDraft }),
         onUpdate: (world, draft) => updateVRChatWorld({
             id: world.id,
-            ...actor,
             vrChatWorldId: normalizeWorldId(draft.vrChatWorldId),
             name: draft.name,
             recommendedCapacity: Number(draft.recommendedCapacity),
@@ -1074,14 +1060,14 @@ function AdminWorldSection({ items, actor, canDelete, onChanged, onMessage }) {
             ios: draft.ios,
             isPrivate: draft.isPrivate
         }),
-        onDelete: (world) => deleteVRChatWorld({ id: world.id, ...actor }),
+        onDelete: (world) => deleteVRChatWorld({ id: world.id }),
         canDelete,
         onChanged,
         onMessage
     });
 }
 
-function AdminPlaceInfoSection({ items, actor, canDelete, onChanged, onMessage }) {
+function AdminPlaceInfoSection({ items, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Place Infos",
         items,
@@ -1090,19 +1076,18 @@ function AdminPlaceInfoSection({ items, actor, canDelete, onChanged, onMessage }
         renderForm: (draft, setDraft) => React.createElement(PlaceInfoFields, { value: draft, onChange: setDraft }),
         onUpdate: (placeInfo, draft) => updatePlaceInfo({
             id: placeInfo.id,
-            ...actor,
             name: draft.name,
             address: draft.address,
             businessInformation: draft.businessInformation
         }),
-        onDelete: (placeInfo) => deletePlaceInfo({ id: placeInfo.id, ...actor }),
+        onDelete: (placeInfo) => deletePlaceInfo({ id: placeInfo.id }),
         canDelete,
         onChanged,
         onMessage
     });
 }
 
-function AdminWebLinkSection({ items, actor, canDelete, onChanged, onMessage }) {
+function AdminWebLinkSection({ items, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Web Links",
         items,
@@ -1111,18 +1096,17 @@ function AdminWebLinkSection({ items, actor, canDelete, onChanged, onMessage }) 
         renderForm: (draft, setDraft) => React.createElement(WebLinkFields, { value: draft, onChange: setDraft }),
         onUpdate: (webLink, draft) => updateWebLink({
             id: webLink.id,
-            ...actor,
             siteName: draft.siteName,
             url: draft.url
         }),
-        onDelete: (webLink) => deleteWebLink({ id: webLink.id, ...actor }),
+        onDelete: (webLink) => deleteWebLink({ id: webLink.id }),
         canDelete,
         onChanged,
         onMessage
     });
 }
 
-function AdminCommentSection({ items, actor, canDelete, onChanged, onMessage }) {
+function AdminCommentSection({ items, canDelete, onChanged, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Comments",
         items,
@@ -1134,10 +1118,9 @@ function AdminCommentSection({ items, actor, canDelete, onChanged, onMessage }) 
         }),
         onUpdate: (comment, draft) => updateComment({
             id: comment.id,
-            ...actor,
             comments: draft.comments
         }),
-        onDelete: (comment) => deleteComment({ id: comment.id, ...actor }),
+        onDelete: (comment) => deleteComment({ id: comment.id }),
         canDelete,
         onChanged,
         onMessage
@@ -1392,7 +1375,7 @@ function renderComment(comment) {
     );
 }
 
-async function loadCurrentUser() {
+export async function loadCurrentUser() {
     const response = await fetch("/auth/me");
     if (!response.ok) {
         return null;
@@ -1419,17 +1402,17 @@ async function loadDevelopmentApp() {
     return response.json();
 }
 
-async function loadAreas() {
+export async function loadAreas() {
     const body = await postJson("/areas/list", {});
     return unwrap(body).areas ?? [];
 }
 
-async function loadSpots(query = "") {
+export async function loadSpots(query = "") {
     const body = await postJson("/spots/list", { query });
     return unwrap(body).spots ?? [];
 }
 
-async function getSpot(id) {
+export async function getSpot(id) {
     const body = await postJson("/spots/get", { id });
     return unwrap(body);
 }
@@ -1524,7 +1507,7 @@ async function deleteComment(payload) {
     return unwrap(body);
 }
 
-async function postJson(url, payload) {
+export async function postJson(url, payload) {
     const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1539,7 +1522,7 @@ async function postJson(url, payload) {
     return response.json();
 }
 
-function unwrap(body) {
+export function unwrap(body) {
     return body?.value ?? body;
 }
 
@@ -1563,7 +1546,7 @@ function formatCoordinate(value) {
     return Number(value).toFixed(6);
 }
 
-function formatAreaName(areaCode, areas) {
+export function formatAreaName(areaCode, areas) {
     const numericAreaCode = Number(areaCode);
     const area = areas.find((item) => item.areaCode === numericAreaCode);
     return area ? area.areaName : `未定義エリア (${numericAreaCode})`;
@@ -1802,4 +1785,7 @@ function escapeHtml(value) {
     }[character]));
 }
 
-createRoot(document.querySelector("#root")).render(React.createElement(App));
+const rootElement = document.querySelector("#root");
+if (rootElement && document.body.dataset.app !== "admin") {
+    createRoot(rootElement).render(React.createElement(App));
+}
