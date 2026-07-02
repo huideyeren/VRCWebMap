@@ -18,24 +18,41 @@ public static class GetWorldData
     /// <param name="ReverseCategorys">カテゴリ表示順を反転するかどうかです。</param>
     /// <param name="ShowPrivateWorld">private release のワールドを選択可能にするかどうかです。常に <c>true</c> です。</param>
     /// <param name="Categorys">地域カテゴリごとのワールド一覧です。</param>
+    /// <param name="Roles">ログイン中ユーザーのPersonalカテゴリに対応するロールです。</param>
     public sealed record Response(
         [property: JsonPropertyName("ReverseCategorys")]
         bool ReverseCategorys,
         [property: JsonPropertyName("ShowPrivateWorld")]
         bool ShowPrivateWorld,
         [property: JsonPropertyName("Categorys")]
-        Category[] Categorys);
+        Category[] Categorys,
+        [property: JsonPropertyName("Roles")]
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        Role[]? Roles = null);
 
     /// <summary>
     /// 地域カテゴリと、そのカテゴリに属するワールド一覧です。
     /// </summary>
     /// <param name="CategoryName">地域カテゴリ名です。</param>
     /// <param name="Worlds">地域カテゴリに属する VRChat ワールド一覧です。</param>
+    /// <param name="PermittedRoles">Personalカテゴリを閲覧できるWPPLSロールです。</param>
     public sealed record Category(
         [property: JsonPropertyName("Category")]
         string CategoryName,
         [property: JsonPropertyName("Worlds")]
-        World[] Worlds);
+        World[] Worlds,
+        [property: JsonPropertyName("PermittedRoles")]
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        string[]? PermittedRoles = null);
+
+    /// <summary>
+    /// WPPLSでカテゴリの閲覧を許可するVRChatユーザーロールです。
+    /// </summary>
+    public sealed record Role(
+        [property: JsonPropertyName("RoleName")]
+        string RoleName,
+        [property: JsonPropertyName("DisplayNames")]
+        string[] DisplayNames);
 
     /// <summary>
     /// ポータル JSON に出力する VRChat ワールドです。

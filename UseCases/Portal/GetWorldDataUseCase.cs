@@ -1,7 +1,9 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Portal;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.PortalCategories;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Portal;
 
@@ -14,7 +16,11 @@ namespace VrcWebMap.Backend.UseCases.Portal;
 /// <summary>
 /// VRChat ワールドポータル向け JSON を作成するユースケースです。
 /// </summary>
-public sealed class GetWorldDataUseCase(ISpotRepository spots)
+public sealed class GetWorldDataUseCase(
+    ISpotRepository spots,
+    IPortalCategoryRepository portalCategories,
+    IDiscordUserRepository users,
+    ICurrentActorAccessor currentActor)
     : IUseCase<GetWorldData.Request, GetWorldData.Response>
 {
     /// <summary>
@@ -35,7 +41,7 @@ public sealed class GetWorldDataUseCase(ISpotRepository spots)
                 spotById.ContainsKey(world.SpotId.Value))
             .ToArray();
 
-        var categorys = worlds
+        var regionalCategorys = worlds
             .GroupBy(world => areaByCode[spotById[world.SpotId!.Value].AreaCode].Category)
             .OrderBy(group => AreaCategoryDisplayNames.OrderOf(group.Key))
             .Select(group => new GetWorldData.Category(
@@ -46,10 +52,38 @@ public sealed class GetWorldDataUseCase(ISpotRepository spots)
                     .ToArray()))
             .ToArray();
 
+        var actor = currentActor.GetCurrent();
+        var publicCategorys = portalCategories.List()
+            .Where(category => category.Visibility == PortalCategoryVisibility.Public)
+            .Select(category => ToPortalCategory(category, PermittedRoles: null))
+            .ToArray();
+
+        var displayName = ResolveCurrentDisplayName(actor);
+        var personalCategorys = actor is null || displayName is null
+            ? []
+            : portalCategories.List()
+                .Where(category =>
+                    category.Visibility == PortalCategoryVisibility.Personal &&
+                    string.Equals(
+                        category.OwnerUserId,
+                        actor.DiscordUserId,
+                        StringComparison.Ordinal))
+                .Select(category => ToPortalCategory(category, [displayName]))
+                .ToArray();
+
+        var roles = personalCategorys.Length == 0
+            ? null
+            : new[] { new GetWorldData.Role(displayName!, [displayName!]) };
+        var categorys = regionalCategorys
+            .Concat(publicCategorys)
+            .Concat(personalCategorys)
+            .ToArray();
+
         var response = new GetWorldData.Response(
             ReverseCategorys: false,
             ShowPrivateWorld: true,
-            Categorys: categorys);
+            Categorys: categorys,
+            Roles: roles);
 
         return Task.FromResult(KawaResult<GetWorldData.Response>.Success(response));
     }
@@ -63,5 +97,31 @@ public sealed class GetWorldDataUseCase(ISpotRepository spots)
             world.Description,
             new GetWorldData.Platform(world.PC, world.Android, world.IOS),
             world.ReleaseStatus);
+
+    private GetWorldData.Category ToPortalCategory(
+        PortalCategory category,
+        string[]? PermittedRoles) =>
+        new(
+            category.Name,
+            spots.ListWorlds()
+                .Where(world =>
+                    world.SpotId is null &&
+                    world.PortalCategoryId == category.Id)
+                .OrderBy(world => world.Name, StringComparer.Ordinal)
+                .Select(ToWorld)
+                .ToArray(),
+            PermittedRoles);
+
+    private string? ResolveCurrentDisplayName(CurrentActor? actor)
+    {
+        if (actor is null ||
+            !users.TryGetByDiscordUserId(actor.DiscordUserId, out var user) ||
+            string.IsNullOrWhiteSpace(user.VRChatDisplayName))
+        {
+            return null;
+        }
+
+        return user.VRChatDisplayName;
+    }
 
 }
