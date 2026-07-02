@@ -17,6 +17,8 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(VRChatWorld[]))]
 [JsonSerializable(typeof(AreaDefinition))]
 [JsonSerializable(typeof(AreaDefinition[]))]
+[JsonSerializable(typeof(ListAreas.Item), TypeInfoPropertyName = "ListAreasItem")]
+[JsonSerializable(typeof(ListAreas.Item[]), TypeInfoPropertyName = "ListAreasItemArray")]
 [JsonSerializable(typeof(PlaceInfo))]
 [JsonSerializable(typeof(PlaceInfo[]))]
 [JsonSerializable(typeof(WebLink))]

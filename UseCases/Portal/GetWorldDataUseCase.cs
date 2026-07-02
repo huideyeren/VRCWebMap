@@ -17,25 +17,6 @@ namespace VrcWebMap.Backend.UseCases.Portal;
 public sealed class GetWorldDataUseCase(ISpotRepository spots)
     : IUseCase<GetWorldData.Request, GetWorldData.Response>
 {
-    private static readonly AreaCategory[] CategoryOrder =
-    [
-        AreaCategory.Hokkaido,
-        AreaCategory.Tohoku,
-        AreaCategory.Kanto,
-        AreaCategory.Chubu,
-        AreaCategory.Kansai,
-        AreaCategory.Chugoku,
-        AreaCategory.Shikoku,
-        AreaCategory.KyushuOkinawa,
-        AreaCategory.Asia,
-        AreaCategory.Europe,
-        AreaCategory.Africa,
-        AreaCategory.Oceania,
-        AreaCategory.NorthAmerica,
-        AreaCategory.SouthAmerica,
-        AreaCategory.Antarctica
-    ];
-
     /// <summary>
     /// Spot の地域カテゴリごとに VRChat ワールドをまとめます。
     /// </summary>
@@ -55,9 +36,9 @@ public sealed class GetWorldDataUseCase(ISpotRepository spots)
 
         var categorys = worlds
             .GroupBy(world => areaByCode[spotById[world.SpotId].AreaCode].Category)
-            .OrderBy(group => Array.IndexOf(CategoryOrder, group.Key))
+            .OrderBy(group => AreaCategoryDisplayNames.OrderOf(group.Key))
             .Select(group => new GetWorldData.Category(
-                CategoryDisplayName(group.Key),
+                AreaCategoryDisplayNames.Get(group.Key),
                 group
                     .OrderBy(world => world.Name, StringComparer.Ordinal)
                     .Select(ToWorld)
@@ -83,24 +64,4 @@ public sealed class GetWorldDataUseCase(ISpotRepository spots)
             new GetWorldData.Platform(world.PC, world.Android, world.IOS),
             world.ReleaseStatus);
 
-    private static string CategoryDisplayName(AreaCategory category) =>
-        category switch
-        {
-            AreaCategory.Hokkaido => "北海道",
-            AreaCategory.Tohoku => "東北",
-            AreaCategory.Kanto => "関東",
-            AreaCategory.Chubu => "中部",
-            AreaCategory.Kansai => "関西",
-            AreaCategory.Chugoku => "中国",
-            AreaCategory.Shikoku => "四国",
-            AreaCategory.KyushuOkinawa => "九州・沖縄",
-            AreaCategory.Asia => "アジア",
-            AreaCategory.Europe => "ヨーロッパ",
-            AreaCategory.Africa => "アフリカ",
-            AreaCategory.Oceania => "オセアニア",
-            AreaCategory.NorthAmerica => "北アメリカ",
-            AreaCategory.SouthAmerica => "南アメリカ",
-            AreaCategory.Antarctica => "南極",
-            _ => category.ToString()
-        };
 }
