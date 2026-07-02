@@ -101,6 +101,11 @@ Kawa アプリケーションを理解するときは、原則として次の順
 - `Database:Provider` が `PostgreSQL` で `ConnectionStrings:Postgres` が設定されている場合は、EF Core + Npgsql の `PostgreSqlSpotRepository` を使う。
 - PostgreSQL は Docker Compose で起動する。
 - 現段階では migrations ではなく `EnsureCreated()` で schema を作成する。永続運用へ移る前に migrations へ移行する。
+- PostgreSQLバックアップはComposeの`backup` profileにあるone-shot `db-backup` serviceを使い、通常の`docker compose up`では起動しない。
+- 完全なバックアップ世代はPostgreSQL custom形式の`.dump`、`.sha256`、最後にuploadする`.json` manifestで構成し、既定で4世代を保持する。
+- リスト・latest解決・リストアは検証済みmanifestだけを対象とし、リストア前にDB名、object key、size、checksum、`pg_restore --list`を検証する。
+- host側のリストアwrapperは対象keyを確定してからbackendを停止し、成功かつ元々稼働中だった場合だけ再起動する。リストア失敗時はbackendを停止したままにする。
+- `.env.backup`、PostgreSQL password、S3 secretはGitへcommitせず、ログにも出力しない。
 - Redis は任意。現時点では実装に組み込まない。
 - Redis を使うのは、`/portal/world-data` など読み取りが重い endpoint で PostgreSQL read や JSON 生成が明確なボトルネックになった場合に限定する。
 - Redis を導入する場合は、まず `/portal/world-data` の短時間キャッシュから検討する。`Spot`、`VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の更新・削除時に該当キャッシュを確実に無効化する設計を先に用意する。
