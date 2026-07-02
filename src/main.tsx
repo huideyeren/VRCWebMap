@@ -3,6 +3,7 @@ import "leaflet/dist/leaflet.css";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createSpotIcon, getCurrentPosition } from "./map-ui";
+import { getSpotCategoryKey, groupSpotsByArea } from "./spot-regions";
 
 type SelectSpotOptions = {
     updateUrl?: boolean;
@@ -30,6 +31,7 @@ function App() {
     const [developmentUsers, setDevelopmentUsers] = useState([]);
     const [message, setMessage] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
+    const [submittedSearchQuery, setSubmittedSearchQuery] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [isDownloadingPortal, setIsDownloadingPortal] = useState(false);
     const [isMapBrandVisible, setIsMapBrandVisible] = useState(true);
@@ -309,6 +311,7 @@ function App() {
         try {
             const loaded = await loadSpots(searchQuery);
             setSpots(loaded);
+            setSubmittedSearchQuery(searchQuery.trim());
             if (searchQuery.trim() && loaded.length === 0) {
                 setMessage("検索条件に一致する Spot は見つかりませんでした。");
             }
@@ -327,6 +330,7 @@ function App() {
 
         try {
             setSpots(await loadSpots());
+            setSubmittedSearchQuery("");
         } catch (error) {
             setMessage(error.message);
         }
@@ -531,7 +535,13 @@ function App() {
                     currentUser,
                     onOpenProfile: openProfileScreen
                 }) : null,
-                screen !== "profile" ? React.createElement(SpotList, { spots, selectedSpotId: selectedSpot?.id, onSelect: selectSpot }) : null
+                screen !== "profile" ? React.createElement(SpotList, {
+                    spots,
+                    areas,
+                    selectedSpotId: selectedSpot?.id,
+                    resetKey: submittedSearchQuery,
+                    onSelect: selectSpot
+                }) : null
             )
         )
     );
@@ -1297,19 +1307,88 @@ function EmptyState({ onReload, currentUser, onOpenProfile }) {
     );
 }
 
-function SpotList({ spots, selectedSpotId, onSelect }) {
+function SpotList({ spots, areas, selectedSpotId, resetKey, onSelect }) {
+    const groups = useMemo(
+        () => groupSpotsByArea(spots, areas),
+        [spots, areas]);
+    const [openCategories, setOpenCategories] = useState(() => new Set<string>());
+
+    useEffect(() => {
+        setOpenCategories(new Set());
+    }, [resetKey]);
+
+    useEffect(() => {
+        if (!selectedSpotId) {
+            return;
+        }
+
+        const selectedSpot = spots.find((spot) => spot.id === selectedSpotId);
+        if (!selectedSpot) {
+            return;
+        }
+
+        const selectedKey = getSpotCategoryKey(selectedSpot, areas);
+        const availableKeys = new Set(groups.map((group) => group.key));
+        setOpenCategories((current) => {
+            const next = new Set(
+                [...current].filter((key) => availableKeys.has(key)));
+            next.add(selectedKey);
+
+            return next.size === current.size &&
+                [...next].every((key) => current.has(key))
+                ? current
+                : next;
+        });
+    }, [areas, groups, selectedSpotId, spots]);
+
+    function toggleCategory(key: string) {
+        setOpenCategories((current) => {
+            const next = new Set(current);
+            if (next.has(key)) {
+                next.delete(key);
+            } else {
+                next.add(key);
+            }
+
+            return next;
+        });
+    }
+
     return React.createElement("section", { className: "card" },
         React.createElement("h3", null, "Spot 一覧"),
         spots.length === 0
             ? React.createElement("p", { className: "meta" }, "登録済み Spot はありません。")
-            : React.createElement("div", { className: "related-list" }, spots.map((spot) =>
-                React.createElement("button", {
-                    key: spot.id,
-                    type: "button",
-                    className: spot.id === selectedSpotId ? "" : "secondary",
-                    onClick: () => onSelect(spot)
-                }, spot.name)
-            ))
+            : React.createElement("div", { className: "spot-region-list" }, groups.map((group) => {
+                const isOpen = openCategories.has(group.key);
+                const panelId = `spot-region-${group.key}`;
+
+                return React.createElement("section", { key: group.key, className: "spot-region-group" },
+                    React.createElement("button", {
+                        type: "button",
+                        className: "spot-region-heading",
+                        "aria-expanded": isOpen,
+                        "aria-controls": panelId,
+                        onClick: () => toggleCategory(group.key)
+                    },
+                        React.createElement("span", { className: "spot-region-chevron", "aria-hidden": "true" }, isOpen ? "⌄" : "›"),
+                        React.createElement("span", { className: "spot-region-name" }, group.name),
+                        React.createElement("span", { className: "spot-region-count" }, group.spots.length)
+                    ),
+                    React.createElement("div", {
+                        id: panelId,
+                        className: "spot-region-panel",
+                        hidden: !isOpen
+                    }, group.spots.map((spot) =>
+                        React.createElement("button", {
+                            key: spot.id,
+                            type: "button",
+                            className: spot.id === selectedSpotId ? "" : "secondary",
+                            onClick: () => onSelect(spot)
+                        }, spot.name)
+                    ))
+                );
+            })
+            )
     );
 }
 

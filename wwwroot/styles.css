@@ -545,6 +545,69 @@ h1 {
     gap: 12px;
 }
 
+.spot-region-list,
+.spot-region-panel {
+    display: grid;
+    gap: 10px;
+}
+
+.spot-region-group {
+    min-width: 0;
+}
+
+button.spot-region-heading {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    width: 100%;
+    gap: 9px;
+    border-radius: 16px;
+    padding: 10px 12px;
+    color: var(--accent-strong);
+    background: rgba(13, 112, 88, 0.1);
+    text-align: left;
+}
+
+button.spot-region-heading:hover,
+button.spot-region-heading[aria-expanded="true"] {
+    color: #fff;
+    background: var(--accent);
+}
+
+.spot-region-chevron {
+    width: 1em;
+    font-size: 1.15em;
+    line-height: 1;
+    text-align: center;
+}
+
+.spot-region-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.spot-region-count {
+    display: inline-grid;
+    min-width: 1.8rem;
+    min-height: 1.8rem;
+    place-items: center;
+    border-radius: 999px;
+    padding: 0 0.45rem;
+    color: currentColor;
+    background: rgba(255, 255, 255, 0.22);
+    font-size: 0.76rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.spot-region-panel {
+    padding: 10px 0 2px 18px;
+}
+
+.spot-region-panel > button {
+    width: 100%;
+    overflow-wrap: anywhere;
+}
+
 .related-item {
     padding: 13px;
     border: 1px solid var(--line);
@@ -1115,6 +1178,10 @@ button.compact {
 
     .two-column {
         grid-template-columns: 1fr;
+    }
+
+    .spot-region-panel {
+        padding-left: 8px;
     }
 
     .ogp-card {
