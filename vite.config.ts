@@ -7,7 +7,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         app: "src/main.tsx",
-        admin: "src/admin.tsx"
+        admin: "src/admin.tsx",
+        portal: "src/portal.tsx"
       },
       output: {
         entryFileNames: "[name].js",

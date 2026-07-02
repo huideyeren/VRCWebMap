@@ -34,7 +34,6 @@ function App() {
     const [searchQuery, setSearchQuery] = useState("");
     const [submittedSearchQuery, setSubmittedSearchQuery] = useState("");
     const [isSaving, setIsSaving] = useState(false);
-    const [isDownloadingPortal, setIsDownloadingPortal] = useState(false);
     const [isMapBrandVisible, setIsMapBrandVisible] = useState(true);
     const [isLocating, setIsLocating] = useState(false);
     const spotCount = spots.length;
@@ -361,30 +360,6 @@ function App() {
         setMessage("");
     }
 
-    async function downloadPortalData() {
-        setIsDownloadingPortal(true);
-        setMessage("");
-
-        try {
-            const body = await postJson("/portal/world-data", {});
-            const portalData = unwrap(body);
-            const blob = new Blob([JSON.stringify(portalData, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const anchor = document.createElement("a");
-            anchor.href = url;
-            anchor.download = "WorldData.json";
-            document.body.append(anchor);
-            anchor.click();
-            anchor.remove();
-            URL.revokeObjectURL(url);
-            setMessage("PortalLibrarySystem 用 WorldData.json をダウンロードしました。");
-        } catch (error) {
-            setMessage(error.message);
-        } finally {
-            setIsDownloadingPortal(false);
-        }
-    }
-
     return React.createElement("div", { className: "app-shell" },
         React.createElement("nav", { className: "top-menu" },
             React.createElement("div", null,
@@ -452,12 +427,10 @@ function App() {
                             }, "Swagger")
                         ) : null,
                         React.createElement("hr", null),
-                        React.createElement("button", {
-                            type: "button",
-                            className: "secondary",
-                            onClick: downloadPortalData,
-                            disabled: isDownloadingPortal
-                        }, isDownloadingPortal ? "生成中..." : "WorldData.json ダウンロード")
+                        React.createElement("a", {
+                            className: "menu-button",
+                            href: "/portal.html"
+                        }, "Portal JSON")
                     )
                 )
             )
@@ -1964,6 +1937,6 @@ function escapeHtml(value) {
 }
 
 const rootElement = document.querySelector("#root");
-if (rootElement && document.body.dataset.app !== "admin") {
+if (rootElement && document.body.dataset.app === "map") {
     createRoot(rootElement).render(React.createElement(App));
 }
