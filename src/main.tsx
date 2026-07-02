@@ -366,7 +366,7 @@ function App() {
         setMessage("");
 
         try {
-            const body = await postJson("/portal/world-data", { showPrivateWorld: true });
+            const body = await postJson("/portal/world-data", {});
             const portalData = unwrap(body);
             const blob = new Blob([JSON.stringify(portalData, null, 2)], { type: "application/json" });
             const url = URL.createObjectURL(blob);
@@ -1313,7 +1313,16 @@ function WorldFields({ value, onChange }) {
             React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.pc, onChange: update("pc") }), "PC"),
             React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.android, onChange: update("android") }), "Android"),
             React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.ios, onChange: update("ios") }), "iOS"),
-            React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.isPrivate, onChange: update("isPrivate") }), "Private")
+            React.createElement(
+                "label",
+                null,
+                React.createElement("input", {
+                    type: "checkbox",
+                    checked: value.isPrivate,
+                    onChange: update("isPrivate")
+                }),
+                "VRChat上で非公開（private release）"
+            )
         )
     );
 }
