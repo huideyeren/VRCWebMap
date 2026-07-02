@@ -60,7 +60,7 @@ dc exec --no-TTY postgres psql \
     --command "CREATE TABLE backup_probe(value text NOT NULL); INSERT INTO backup_probe VALUES ('generation-a');" \
     >/dev/null
 
-dc run --rm --no-deps db-backup backup
+backup_key=$(dc run --rm --no-deps db-backup backup)
 
 list_output=$(dc run --rm --no-deps db-backup list)
 echo "$list_output" | grep 'backups/vrcwebmap-' >/dev/null ||
@@ -73,6 +73,73 @@ echo "$list_output" | grep 'backups/vrcwebmap-' >/dev/null ||
 latest_key=$(dc run --rm --no-deps db-backup resolve latest)
 echo "$latest_key" | grep -E '^backups/vrcwebmap-[0-9]{8}T[0-9]{6}Z\.dump$' >/dev/null ||
     fail "latest did not resolve to a dump key"
+[ "$latest_key" = "$backup_key" ] || fail "first backup did not resolve as latest"
+
+database_value() {
+    dc exec --no-TTY postgres psql \
+        --username vrcwebmap \
+        --dbname vrcwebmap \
+        --tuples-only \
+        --no-align \
+        --command "SELECT value FROM backup_probe;"
+}
+
+set_probe_value() {
+    value=$1
+    dc exec --no-TTY postgres psql \
+        --username vrcwebmap \
+        --dbname vrcwebmap \
+        --set ON_ERROR_STOP=1 \
+        --command "UPDATE backup_probe SET value = '$value';" \
+        >/dev/null
+}
+
+set_probe_value generation-b
+dc run --rm --no-deps db-backup restore "$backup_key"
+[ "$(database_value)" = "generation-a" ] ||
+    fail "explicit restore did not recover generation A"
+
+set_probe_value generation-b
+resolved_latest=$(dc run --rm --no-deps db-backup resolve latest)
+dc run --rm --no-deps db-backup restore "$resolved_latest"
+[ "$(database_value)" = "generation-a" ] ||
+    fail "latest restore did not recover generation A"
+
+checksum_key=${backup_key%.dump}.sha256
+dc run --rm --no-deps \
+    --volume "$script_dir:/test-data" \
+    minio-client cp \
+    "local/vrcwebmap-backups/$checksum_key" \
+    /test-data/original.sha256 >/dev/null
+printf '%064d  invalid.dump\n' 0 >"$script_dir/tampered.sha256"
+dc run --rm --no-deps \
+    --volume "$script_dir:/test-data:ro" \
+    minio-client cp \
+    /test-data/tampered.sha256 \
+    "local/vrcwebmap-backups/$checksum_key" >/dev/null
+
+set +e
+dc run --rm --no-deps db-backup restore "$backup_key" >/dev/null 2>&1
+tampered_status=$?
+set -e
+[ "$tampered_status" -eq 68 ] ||
+    fail "tampered checksum returned $tampered_status instead of 68"
+
+dc run --rm --no-deps \
+    --volume "$script_dir:/test-data:ro" \
+    minio-client cp \
+    /test-data/original.sha256 \
+    "local/vrcwebmap-backups/$checksum_key" >/dev/null
+rm -f "$script_dir/original.sha256" "$script_dir/tampered.sha256"
+
+set +e
+dc run --rm --no-deps \
+    --env PGOPTIONS=--default-transaction-read-only=on \
+    db-backup restore "$backup_key" >/dev/null 2>&1
+restore_failure_status=$?
+set -e
+[ "$restore_failure_status" -eq 69 ] ||
+    fail "pg_restore failure returned $restore_failure_status instead of 69"
 
 # manifestがないobjectは、不完全世代として一覧とlatest解決から除外します。
 printf 'incomplete' >"$script_dir/incomplete.dump"

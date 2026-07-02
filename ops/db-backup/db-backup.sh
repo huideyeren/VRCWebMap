@@ -286,6 +286,73 @@ describe_backup() {
         "$manifest_file"
 }
 
+restore_database() {
+    dump_key=${1:-}
+    [ -n "$dump_key" ] || die "$EX_USAGE" "restore requires an exact dump object key"
+
+    manifest_key=${dump_key%.dump}.json
+    checksum_key=${dump_key%.dump}.sha256
+    base_name=${dump_key##*/}
+    dump_file="$temporary_directory/$base_name"
+    checksum_file="$temporary_directory/${base_name%.dump}.sha256"
+    manifest_file="$temporary_directory/${base_name%.dump}.json"
+
+    download_object "$dump_key" "$dump_file" ||
+        die "$EX_S3" "failed to download dump: $dump_key"
+    download_object "$checksum_key" "$checksum_file" ||
+        die "$EX_S3" "failed to download checksum: $checksum_key"
+    download_object "$manifest_key" "$manifest_file" ||
+        die "$EX_S3" "failed to download manifest: $manifest_key"
+
+    manifest_is_valid "$manifest_file" "$manifest_key" ||
+        die "$EX_VERIFY" "manifest is invalid: $manifest_key"
+
+    manifest_size=$(jq -r '.sizeBytes' "$manifest_file")
+    actual_size=$(wc -c <"$dump_file" | tr -d ' ')
+    [ "$actual_size" = "$manifest_size" ] ||
+        die "$EX_VERIFY" "dump size does not match manifest"
+
+    manifest_hash=$(jq -r '.sha256' "$manifest_file")
+    checksum_line_count=$(wc -l <"$checksum_file" | tr -d ' ')
+    checksum_hash=$(awk 'NR == 1 { print $1 }' "$checksum_file")
+    checksum_name=$(awk 'NR == 1 { print $2 }' "$checksum_file")
+    [ "$checksum_line_count" = "1" ] &&
+        [ "$checksum_hash" = "$manifest_hash" ] &&
+        [ "$checksum_name" = "$base_name" ] ||
+        die "$EX_VERIFY" "checksum object does not match manifest"
+
+    actual_hash=$(sha256sum "$dump_file" | awk '{ print $1 }')
+    [ "$actual_hash" = "$manifest_hash" ] ||
+        die "$EX_VERIFY" "dump checksum verification failed"
+    pg_restore --list "$dump_file" >/dev/null ||
+        die "$EX_VERIFY" "dump archive could not be read"
+
+    psql \
+        --set ON_ERROR_STOP=1 \
+        --command "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid();" \
+        >/dev/null ||
+        die "$EX_RESTORE" "failed to terminate database sessions"
+
+    pg_restore \
+        --clean \
+        --if-exists \
+        --exit-on-error \
+        --single-transaction \
+        --no-owner \
+        --no-acl \
+        --dbname "$PGDATABASE" \
+        "$dump_file" ||
+        die "$EX_RESTORE" "pg_restore failed; database was left unchanged"
+
+    psql \
+        --set ON_ERROR_STOP=1 \
+        --command "ANALYZE" \
+        >/dev/null ||
+        die "$EX_RESTORE" "restore succeeded, but ANALYZE failed"
+
+    echo "$dump_key"
+}
+
 case "$operation" in
     backup)
         [ "$#" -eq 0 ] || die "$EX_USAGE" "backup takes no arguments"
@@ -304,6 +371,7 @@ case "$operation" in
         describe_backup "$1"
         ;;
     restore)
-        die "$EX_USAGE" "restore is not implemented yet"
+        [ "$#" -eq 1 ] || die "$EX_USAGE" "restore requires exactly one dump object key"
+        restore_database "$1"
         ;;
 esac
