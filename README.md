@@ -205,7 +205,13 @@ Portal export endpoints are also exposed through Kawa use cases:
 - `POST /portal/world-data`
 
 `/portal/world-data` returns VRChat worlds grouped by Japanese regional
-category names in a `WorldData.json`-style shape.
+category names using the official `WorldData.json` shape. The request body is
+an empty JSON object. The response always sets `ShowPrivateWorld` to `true`,
+keeps both public and private VRChat releases selectable, and writes the raw
+`wrld_...` value to each world `ID`. `ReleaseStatus` describes the VRChat
+release status; it is not a WPPLS access-control setting. `Roles` and
+`PermittedRoles` are intentionally omitted until off-map world registration is
+implemented.
 
 This portal export is intended for Genkai Kogyo's `PortalLibrarySystem (WPPLS)`,
 a VRChat portal system distributed on BOOTH:
@@ -459,7 +465,11 @@ private network address は拒否します。
 - `POST /portal/world-data`
 
 `/portal/world-data` は、VRChat ワールドを日本語の地域カテゴリ名ごとにまとめ、
-`WorldData.json` に近い形式で返します。
+正式な `WorldData.json` 形式で返します。request body は空の JSON object です。
+response の `ShowPrivateWorld` は常に `true` で、VRChat 上の public/private release
+をどちらも選択可能にし、各 world の `ID` には `wrld_...` 形式の値を出力します。
+`ReleaseStatus` は VRChat 上の公開状態であり、WPPLS の閲覧権限ではありません。
+地図外ワールド登録を実装するまでは `Roles` と `PermittedRoles` を出力しません。
 
 このポータル出力は、幻会興業さんの `PortalLibrarySystem（WPPLS）` 向けです。
 BOOTH の配布ページ:

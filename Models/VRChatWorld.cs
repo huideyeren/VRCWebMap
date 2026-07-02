@@ -14,7 +14,7 @@ namespace VrcWebMap.Backend.Models;
 /// <param name="PC">PC 対応の有無です。</param>
 /// <param name="Android">Android 対応の有無です。</param>
 /// <param name="IOS">iOS 対応の有無です。</param>
-/// <param name="IsPrivate">プライベートワールドかどうかを示します。既定値は <c>false</c> です。</param>
+/// <param name="IsPrivate">VRChat 上の release status が private の場合は <c>true</c> です。WPPLS の閲覧権限には使用しません。</param>
 public sealed record VRChatWorld(
     Guid Id,
     Guid SpotId,
@@ -35,7 +35,7 @@ public sealed record VRChatWorld(
     public Uri WorldPageUrl => new($"https://vrchat.com/home/world/{VRChatWorldId}/info");
 
     /// <summary>
-    /// ポータル用 JSON で使う公開状態です。
+    /// WPPLS に出力する VRChat 上の release status です。
     /// </summary>
     public string ReleaseStatus => IsPrivate ? "private" : "public";
 }

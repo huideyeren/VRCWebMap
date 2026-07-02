@@ -24,12 +24,16 @@
 - 1つの `Spot` には、0件以上の `VRChatWorld` が紐づく。
 - `VRChatWorld` は将来のポータル JSON の world record の基礎モデルとして扱う。
 - `VRChatWorld` は登録者を追跡するため、登録者 ID を保持する。
-- `VRChatWorld.IsPrivate` は基本 `false` とし、ポータル用 JSON では `false` を `public`、`true` を `private` として扱う。
+- `VRChatWorld.IsPrivate` は VRChat 上の release status を表す。`false` を `public`、`true` を `private` としてポータル用 JSON に出力し、WPPLS の閲覧権限には使用しない。
 - 地図アプリへ `VRChatWorld` を出力するときは、VRChat world ID だけではなく `https://vrchat.com/home/world/{VRChatWorldId}/info` 形式のワールドページ URL を使う。
 - `VRChatWorld` のワールドページ URL は `/web-links/preview` で OGP preview を取得して表示できる。ただし preview は保存データには含めない。
 - ポータル用 JSON は `Categorys[] -> Worlds[]` の形で出力し、`Category` には `AreaCategory` の日本語表示名を使う。
 - ポータル用 JSON の出力 endpoint は `POST /portal/world-data` とする。
 - ポータル用 JSON は幻会興業さんの `PortalLibrarySystem（WPPLS）` 向けに出力する。参照: https://booth.pm/ja/items/6659099
+- ポータル用 JSON の `ShowPrivateWorld` は常に `true` とし、public/private release の両方を選択可能にする。
+- ポータル用 JSON の world `ID` には URL ではなく `wrld_...` 形式の VRChat world ID を出力する。
+- 現時点では `Roles` と `PermittedRoles` を出力しない。将来の地図外ワールド登録では、管理者は全体公開またはロール限定、一般ユーザーはロール限定だけを登録できるようにする。
+- 将来のロール限定登録では、登録者本人の VRChat Display Name を `RoleName` と `DisplayNames` に使い、対応する `PermittedRoles` から参照する。
 - 1つの `Spot` には、0件以上の `PlaceInfo` が紐づく。
 - `PlaceInfo` の営業情報は、開店時刻・閉店時刻・定休日の個別プロパティではなく、Markdown 対応の `BusinessInformation` 文字列として保持する。昼営業、夜営業、定休日、臨時休業などを自由に併記できる形にする。
 - 1つの `Spot` には、0件以上の `WebLink` が紐づく。

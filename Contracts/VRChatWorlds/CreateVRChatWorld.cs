@@ -17,7 +17,7 @@ public static class CreateVRChatWorld
     /// <param name="PC">PC 対応の場合は <c>true</c> です。</param>
     /// <param name="Android">Android 対応の場合は <c>true</c> です。</param>
     /// <param name="IOS">iOS 対応の場合は <c>true</c> です。</param>
-    /// <param name="IsPrivate">private ワールドとしてポータル JSON に出力する場合は <c>true</c> です。</param>
+    /// <param name="IsPrivate">VRChat 上の release status が private の場合は <c>true</c> です。</param>
     public sealed record Request(
         Guid SpotId,
         string VRChatWorldId,

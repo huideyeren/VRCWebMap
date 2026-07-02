@@ -60,9 +60,7 @@ Content-Type: application/json
 POST {{VrcWebMap_Backend_HostAddress}}/portal/world-data
 Content-Type: application/json
 
-{
-  "showPrivateWorld": true
-}
+{}
 
 ###
 
