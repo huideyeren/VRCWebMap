@@ -10,25 +10,21 @@ public static class GetWorldData
     /// <summary>
     /// ポータル用ワールドデータ出力の入力です。
     /// </summary>
-    /// <param name="ShowPrivateWorld">private ワールドを出力に含めるかどうかです。</param>
-    public sealed record Request(bool ShowPrivateWorld = true);
+    public sealed record Request;
 
     /// <summary>
     /// WorldData.json 形式のレスポンスです。
     /// </summary>
     /// <param name="ReverseCategorys">カテゴリ表示順を反転するかどうかです。</param>
-    /// <param name="ShowPrivateWorld">private ワールドを出力に含めるかどうかです。</param>
+    /// <param name="ShowPrivateWorld">private release のワールドを選択可能にするかどうかです。常に <c>true</c> です。</param>
     /// <param name="Categorys">地域カテゴリごとのワールド一覧です。</param>
-    /// <param name="Roles">private ワールド制御用のロール一覧です。</param>
     public sealed record Response(
         [property: JsonPropertyName("ReverseCategorys")]
         bool ReverseCategorys,
         [property: JsonPropertyName("ShowPrivateWorld")]
         bool ShowPrivateWorld,
         [property: JsonPropertyName("Categorys")]
-        Category[] Categorys,
-        [property: JsonPropertyName("Roles")]
-        Role[] Roles);
+        Category[] Categorys);
 
     /// <summary>
     /// 地域カテゴリと、そのカテゴリに属するワールド一覧です。
@@ -44,13 +40,13 @@ public static class GetWorldData
     /// <summary>
     /// ポータル JSON に出力する VRChat ワールドです。
     /// </summary>
-    /// <param name="ID">ポータル JSON の world ID です。VRChat world URL を出力します。</param>
+    /// <param name="ID">WPPLS が使用する <c>wrld_...</c> 形式の VRChat world ID です。</param>
     /// <param name="Name">ポータルに表示するワールド名です。</param>
     /// <param name="RecommendedCapacity">推奨収容人数です。</param>
     /// <param name="Capacity">最大収容人数です。</param>
     /// <param name="Description">ポータルに表示するワールド説明です。</param>
     /// <param name="Platform">対応プラットフォームです。</param>
-    /// <param name="ReleaseStatus">ポータル JSON の公開状態です。<c>public</c> または <c>private</c> を出力します。</param>
+    /// <param name="ReleaseStatus">VRChat 上の release status です。<c>public</c> または <c>private</c> を出力します。</param>
     public sealed record World(
         [property: JsonPropertyName("ID")]
         string ID,
@@ -81,14 +77,4 @@ public static class GetWorldData
         [property: JsonPropertyName("iOS")]
         bool IOS);
 
-    /// <summary>
-    /// private ワールド制御用ロールです。
-    /// </summary>
-    /// <param name="RoleName">ポータル側で参照するロール名です。</param>
-    /// <param name="DisplayNames">このロールに紐づく表示名一覧です。</param>
-    public sealed record Role(
-        [property: JsonPropertyName("RoleName")]
-        string RoleName,
-        [property: JsonPropertyName("DisplayNames")]
-        string[] DisplayNames);
 }

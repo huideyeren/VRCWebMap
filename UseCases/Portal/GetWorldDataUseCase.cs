@@ -20,7 +20,7 @@ public sealed class GetWorldDataUseCase(ISpotRepository spots)
     /// <summary>
     /// Spot の地域カテゴリごとに VRChat ワールドをまとめます。
     /// </summary>
-    /// <param name="request">出力オプションです。</param>
+    /// <param name="request">入力値を持たない出力要求です。</param>
     /// <param name="cancellationToken">キャンセル通知です。</param>
     /// <returns>WorldData.json 形式のデータを返します。</returns>
     public Task<KawaResult<GetWorldData.Response>> ExecuteAsync(
@@ -30,7 +30,6 @@ public sealed class GetWorldDataUseCase(ISpotRepository spots)
         var spotById = spots.List().ToDictionary(spot => spot.Id);
         var areaByCode = AreaDefinitions.All.ToDictionary(area => area.AreaCode);
         var worlds = spots.ListWorlds()
-            .Where(world => request.ShowPrivateWorld || !world.IsPrivate)
             .Where(world => spotById.ContainsKey(world.SpotId))
             .ToArray();
 
@@ -47,9 +46,8 @@ public sealed class GetWorldDataUseCase(ISpotRepository spots)
 
         var response = new GetWorldData.Response(
             ReverseCategorys: false,
-            ShowPrivateWorld: request.ShowPrivateWorld,
-            Categorys: categorys,
-            Roles: []);
+            ShowPrivateWorld: true,
+            Categorys: categorys);
 
         return Task.FromResult(KawaResult<GetWorldData.Response>.Success(response));
     }

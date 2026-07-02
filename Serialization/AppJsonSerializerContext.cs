@@ -62,8 +62,6 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(GetWorldData.World), TypeInfoPropertyName = "GetWorldDataWorld")]
 [JsonSerializable(typeof(GetWorldData.World[]), TypeInfoPropertyName = "GetWorldDataWorldArray")]
 [JsonSerializable(typeof(GetWorldData.Platform), TypeInfoPropertyName = "GetWorldDataPlatform")]
-[JsonSerializable(typeof(GetWorldData.Role), TypeInfoPropertyName = "GetWorldDataRole")]
-[JsonSerializable(typeof(GetWorldData.Role[]), TypeInfoPropertyName = "GetWorldDataRoleArray")]
 [JsonSerializable(typeof(CreateVRChatWorld.Request), TypeInfoPropertyName = "CreateVRChatWorldRequest")]
 [JsonSerializable(typeof(CreateVRChatWorld.Response), TypeInfoPropertyName = "CreateVRChatWorldResponse")]
 [JsonSerializable(typeof(UpdateVRChatWorld.Request), TypeInfoPropertyName = "UpdateVRChatWorldRequest")]

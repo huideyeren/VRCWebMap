@@ -1,3 +1,4 @@
+using System.Text.Json;
 using VrcWebMap.Backend.Contracts.Portal;
 using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.Tests.TestDoubles;
@@ -37,7 +38,7 @@ public sealed class GetWorldDataUseCaseTests
         Assert.NotNull(result.Value);
         Assert.False(result.Value.ReverseCategorys);
         Assert.True(result.Value.ShowPrivateWorld);
-        Assert.Empty(result.Value.Roles);
+        Assert.Empty(typeof(GetWorldData.Request).GetProperties());
         Assert.Collection(
             result.Value.Categorys,
             category =>
@@ -57,7 +58,7 @@ public sealed class GetWorldDataUseCaseTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ShowPrivateWorldFalse_ExcludesPrivateWorlds()
+    public async Task ExecuteAsync_AlwaysIncludesPublicAndPrivateReleaseWorlds()
     {
         var spot = new Spot(
             Guid.NewGuid(),
@@ -72,14 +73,71 @@ public sealed class GetWorldDataUseCaseTests
         repository.AddWorld(CreateWorld(spot.Id, "wrld_private", "非公開ワールド", isPrivate: true));
         var useCase = new GetWorldDataUseCase(repository);
 
-        var result = await useCase.ExecuteAsync(new GetWorldData.Request(ShowPrivateWorld: false));
+        var result = await useCase.ExecuteAsync(new GetWorldData.Request());
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        Assert.False(result.Value.ShowPrivateWorld);
+        Assert.True(result.Value.ShowPrivateWorld);
         var category = Assert.Single(result.Value.Categorys);
-        var world = Assert.Single(category.Worlds);
-        Assert.Equal("wrld_public", world.ID);
+        Assert.Collection(
+            category.Worlds.OrderBy(world => world.ID, StringComparer.Ordinal),
+            world =>
+            {
+                Assert.Equal("wrld_private", world.ID);
+                Assert.Equal("private", world.ReleaseStatus);
+            },
+            world =>
+            {
+                Assert.Equal("wrld_public", world.ID);
+                Assert.Equal("public", world.ReleaseStatus);
+            });
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SerializesOnlySupportedWpplsProperties()
+    {
+        var spot = new Spot(
+            Guid.NewGuid(),
+            "owner-user",
+            "東京スポット",
+            35.681236,
+            139.767125,
+            AreaCodes.Japan.Tokyo,
+            "説明");
+        var repository = new FakeSpotRepository(spot);
+        repository.AddWorld(CreateWorld(spot.Id, "wrld_private", "非公開ワールド", isPrivate: true));
+        var useCase = new GetWorldDataUseCase(repository);
+
+        var result = await useCase.ExecuteAsync(new GetWorldData.Request());
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(result.Value));
+        var root = json.RootElement;
+        Assert.True(root.GetProperty("ShowPrivateWorld").GetBoolean());
+        Assert.False(root.TryGetProperty("Roles", out _));
+
+        var category = root.GetProperty("Categorys")[0];
+        Assert.False(category.TryGetProperty("PermittedRoles", out _));
+
+        var world = category.GetProperty("Worlds")[0];
+        Assert.Equal("wrld_private", world.GetProperty("ID").GetString());
+        Assert.Equal("private", world.GetProperty("ReleaseStatus").GetString());
+        Assert.False(world.TryGetProperty("PermittedRoles", out _));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ExcludesWorldWhoseSpotDoesNotExist()
+    {
+        var repository = new FakeSpotRepository();
+        repository.AddWorld(CreateWorld(Guid.NewGuid(), "wrld_orphan", "孤立ワールド"));
+        var useCase = new GetWorldDataUseCase(repository);
+
+        var result = await useCase.ExecuteAsync(new GetWorldData.Request());
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Empty(result.Value.Categorys);
     }
 
     private static VRChatWorld CreateWorld(
