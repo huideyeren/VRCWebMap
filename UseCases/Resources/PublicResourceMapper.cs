@@ -21,7 +21,10 @@ public sealed class PublicResourceMapper(
     /// <summary>
     /// スポットを公開DTOへ変換します。
     /// </summary>
-    public SpotData ToSpot(Spot spot) =>
+    public SpotData ToSpot(
+        Spot spot,
+        bool hasVRChatWorld = false,
+        bool hasPlaceInfo = false) =>
         new(
             spot.Id,
             spot.Name,
@@ -30,7 +33,9 @@ public sealed class PublicResourceMapper(
             spot.AreaCode,
             spot.Description,
             ResolveDisplayName(spot.RegisteredByUserId),
-            CanEdit(spot.RegisteredByUserId));
+            CanEdit(spot.RegisteredByUserId),
+            hasVRChatWorld,
+            hasPlaceInfo);
 
     /// <summary>
     /// VRChatワールドを公開DTOへ変換します。

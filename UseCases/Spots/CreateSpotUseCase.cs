@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Spots;
@@ -18,6 +19,7 @@ namespace VrcWebMap.Backend.UseCases.Spots;
 /// </summary>
 public sealed class CreateSpotUseCase(
     ISpotRepository spots,
+    IDiscordUserRepository users,
     ICurrentActorAccessor currentActor)
     : IUseCase<CreateSpot.Request, CreateSpot.Response>
 {
@@ -61,7 +63,8 @@ public sealed class CreateSpotUseCase(
 
         spots.Upsert(spot);
 
-        var response = new CreateSpot.Response(spot);
+        var mapper = new PublicResourceMapper(users.List(), actor);
+        var response = new CreateSpot.Response(mapper.ToSpot(spot));
         return Task.FromResult(KawaResult<CreateSpot.Response>.Success(response));
     }
 }

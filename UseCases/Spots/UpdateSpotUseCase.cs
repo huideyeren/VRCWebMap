@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Spots;
@@ -18,6 +19,7 @@ namespace VrcWebMap.Backend.UseCases.Spots;
 /// </summary>
 public sealed class UpdateSpotUseCase(
     ISpotRepository spots,
+    IDiscordUserRepository users,
     ICurrentActorAccessor currentActor)
     : IUseCase<UpdateSpot.Request, UpdateSpot.Response>
 {
@@ -73,7 +75,12 @@ public sealed class UpdateSpotUseCase(
 
         spots.Upsert(spot);
 
-        var response = new UpdateSpot.Response(spot);
+        var mapper = new PublicResourceMapper(users.List(), actor);
+        var response = new UpdateSpot.Response(
+            mapper.ToSpot(
+                spot,
+                spots.ListWorlds().Any(world => world.SpotId == spot.Id),
+                spots.ListPlaceInfos().Any(placeInfo => placeInfo.SpotId == spot.Id)));
         return Task.FromResult(KawaResult<UpdateSpot.Response>.Success(response));
     }
 }

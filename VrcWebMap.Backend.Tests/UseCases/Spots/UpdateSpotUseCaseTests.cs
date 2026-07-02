@@ -28,14 +28,16 @@ public sealed class UpdateSpotUseCaseTests
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
         Assert.Equal(existing.Id, result.Value.Spot.Id);
-        Assert.Equal("owner-user", result.Value.Spot.RegisteredByUserId);
+        Assert.Equal("Owner", result.Value.Spot.RegisteredByDisplayName);
+        Assert.True(result.Value.Spot.CanEdit);
         Assert.Equal("新しい名前", result.Value.Spot.Name);
         Assert.Equal(35.681236, result.Value.Spot.Latitude);
         Assert.Equal(139.767125, result.Value.Spot.Longitude);
         Assert.Equal(AreaCodes.Japan.Osaka, result.Value.Spot.AreaCode);
         Assert.Equal("新しい説明", result.Value.Spot.Description);
-        Assert.Single(repository.SavedSpots);
-        Assert.Equal(result.Value.Spot, repository.SavedSpots[0]);
+        var saved = Assert.Single(repository.SavedSpots);
+        Assert.Equal("owner-user", saved.RegisteredByUserId);
+        Assert.Equal(result.Value.Spot.Id, saved.Id);
     }
 
     [Fact]
@@ -107,5 +109,6 @@ public sealed class UpdateSpotUseCaseTests
         bool isAdmin = false) =>
         new(
             repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("owner-user", "Owner"),
             new FakeCurrentActorAccessor(new CurrentActor(userId, isAdmin, HasVRChatDisplayName: true)));
 }

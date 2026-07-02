@@ -11,4 +11,6 @@ public sealed record SpotData(
     int AreaCode,
     string Description,
     string RegisteredByDisplayName,
-    bool CanEdit);
+    bool CanEdit,
+    bool HasVRChatWorld,
+    bool HasPlaceInfo);

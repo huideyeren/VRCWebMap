@@ -2,18 +2,33 @@ using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.Tests.TestDoubles;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.Tests.UseCases.Spots;
 
 public sealed class ListSpotsUseCaseTests
 {
     [Fact]
+    public void ResponseItem_ExposesDisplayNameAndCanEditWithoutInternalUserId()
+    {
+        var itemType = typeof(ListSpots.Response)
+            .GetProperty(nameof(ListSpots.Response.Spots))!
+            .PropertyType
+            .GetElementType()!;
+        var propertyNames = itemType.GetProperties().Select(property => property.Name).ToArray();
+
+        Assert.Contains("RegisteredByDisplayName", propertyNames);
+        Assert.Contains("CanEdit", propertyNames);
+        Assert.DoesNotContain("RegisteredByUserId", propertyNames);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ReturnsSpotsOrderedByName()
     {
         var spotB = new Spot(Guid.NewGuid(), "owner-user", "B Spot", 35, 139, AreaCodes.Japan.Tokyo, "B");
         var spotA = new Spot(Guid.NewGuid(), "owner-user", "A Spot", 36, 140, AreaCodes.Japan.Osaka, "A");
         var repository = new FakeSpotRepository(spotB, spotA);
-        var useCase = new ListSpotsUseCase(repository);
+        var useCase = CreateUseCase(repository);
 
         var result = await useCase.ExecuteAsync(new ListSpots.Request());
 
@@ -31,7 +46,7 @@ public sealed class ListSpotsUseCaseTests
         var akihabara = new Spot(Guid.NewGuid(), "owner-user", "Akihabara Station", 35, 139, AreaCodes.Japan.Tokyo, "電気街の集合場所です。");
         var namba = new Spot(Guid.NewGuid(), "owner-user", "Namba", 34, 135, AreaCodes.Japan.Osaka, "大阪の集合場所です。");
         var repository = new FakeSpotRepository(namba, akihabara);
-        var useCase = new ListSpotsUseCase(repository);
+        var useCase = CreateUseCase(repository);
 
         var result = await useCase.ExecuteAsync(new ListSpots.Request("akihabara"));
 
@@ -46,7 +61,7 @@ public sealed class ListSpotsUseCaseTests
         var portal = new Spot(Guid.NewGuid(), "owner-user", "Portal Hub", 35, 139, AreaCodes.Japan.Tokyo, "VRChat ワールドの入口です。");
         var cafe = new Spot(Guid.NewGuid(), "owner-user", "Cafe", 34, 135, AreaCodes.Japan.Osaka, "休憩場所です。");
         var repository = new FakeSpotRepository(cafe, portal);
-        var useCase = new ListSpotsUseCase(repository);
+        var useCase = CreateUseCase(repository);
 
         var result = await useCase.ExecuteAsync(new ListSpots.Request("ワールド"));
 
@@ -62,7 +77,7 @@ public sealed class ListSpotsUseCaseTests
         var nameOnly = new Spot(Guid.NewGuid(), "owner-user", "Tokyo Cafe", 35, 139, AreaCodes.Japan.Tokyo, "休憩場所です。");
         var descriptionOnly = new Spot(Guid.NewGuid(), "owner-user", "Portal", 35, 139, AreaCodes.Japan.Tokyo, "VRChat ワールドの入口です。");
         var repository = new FakeSpotRepository(nameOnly, matched, descriptionOnly);
-        var useCase = new ListSpotsUseCase(repository);
+        var useCase = CreateUseCase(repository);
 
         var result = await useCase.ExecuteAsync(new ListSpots.Request("Tokyo ワールド"));
 
@@ -83,7 +98,7 @@ public sealed class ListSpotsUseCaseTests
         repository.UpsertPlaceInfo(new PlaceInfo(Guid.NewGuid(), both.Id, "owner-user", "施設", "住所", "営業情報"));
         repository.AddWorld(new VRChatWorld(Guid.NewGuid(), world.Id, "owner-user", "wrld_world", "World", 8, 16, "説明", true, false, false));
         repository.AddWorld(new VRChatWorld(Guid.NewGuid(), both.Id, "owner-user", "wrld_both", "Both", 8, 16, "説明", true, false, false));
-        var useCase = new ListSpotsUseCase(repository);
+        var useCase = CreateUseCase(repository);
 
         var result = await useCase.ExecuteAsync(new ListSpots.Request());
         var items = result.Value!.Spots.ToDictionary(spot => spot.Id);
@@ -97,4 +112,23 @@ public sealed class ListSpotsUseCaseTests
         Assert.True(items[both.Id].HasVRChatWorld);
         Assert.True(items[both.Id].HasPlaceInfo);
     }
+
+    private static ListSpotsUseCase CreateUseCase(FakeSpotRepository repository) =>
+        new(
+            repository,
+            new FakeDiscordUserRepository(
+                new DiscordUser(
+                    "owner-user",
+                    "owner",
+                    null,
+                    null,
+                    "guild",
+                    IsGuildMember: true,
+                    IsAdmin: false,
+                    DateTimeOffset.UnixEpoch,
+                    DateTimeOffset.UnixEpoch,
+                    "所有者",
+                    "所有者")),
+            new FakeCurrentActorAccessor(
+                new CurrentActor("owner-user", IsAdmin: false, HasVRChatDisplayName: true)));
 }

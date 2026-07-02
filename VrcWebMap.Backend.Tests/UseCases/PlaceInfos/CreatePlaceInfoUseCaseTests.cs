@@ -25,10 +25,12 @@ public sealed class CreatePlaceInfoUseCaseTests
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        Assert.Equal(spot.Id, result.Value.PlaceInfo.SpotId);
-        Assert.Equal("discord-user-id", result.Value.PlaceInfo.RegisteredByUserId);
+        Assert.Equal("VRChat User", result.Value.PlaceInfo.RegisteredByDisplayName);
+        Assert.True(result.Value.PlaceInfo.CanEdit);
         Assert.Equal("サンプル飲食店", result.Value.PlaceInfo.Name);
-        Assert.Single(repository.SavedPlaceInfos);
+        var saved = Assert.Single(repository.SavedPlaceInfos);
+        Assert.Equal(spot.Id, saved.SpotId);
+        Assert.Equal("discord-user-id", saved.RegisteredByUserId);
     }
 
     [Fact]
@@ -72,6 +74,7 @@ public sealed class CreatePlaceInfoUseCaseTests
     private static CreatePlaceInfoUseCase CreateUseCase(FakeSpotRepository repository) =>
         new(
             repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("discord-user-id"),
             new FakeCurrentActorAccessor(new CurrentActor(
                 "discord-user-id",
                 IsAdmin: false,

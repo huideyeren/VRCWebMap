@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.Spots;
 
 /// <summary>
@@ -25,7 +23,7 @@ public static class ImportKmlSpots
     /// <param name="Warnings">import 時の警告です。</param>
     /// <param name="UnsupportedPlacemarkCount">Point として読み込めなかった Placemark 件数です。</param>
     public sealed record Response(
-        Spot[] Spots,
+        SpotData[] Spots,
         string[] Warnings,
         int UnsupportedPlacemarkCount);
 }

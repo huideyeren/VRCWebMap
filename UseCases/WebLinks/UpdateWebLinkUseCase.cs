@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.WebLinks;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Spots;
 using VrcWebMap.Backend.UseCases.Users;
 
@@ -17,6 +18,7 @@ namespace VrcWebMap.Backend.UseCases.WebLinks;
 [KawaErrorResponse(KawaErrorKind.Validation, Description = "Web サイト情報の入力値が不正です。")]
 public sealed class UpdateWebLinkUseCase(
     ISpotRepository spots,
+    IDiscordUserRepository users,
     ICurrentActorAccessor currentActor)
     : IUseCase<UpdateWebLink.Request, UpdateWebLink.Response>
 {
@@ -51,6 +53,8 @@ public sealed class UpdateWebLinkUseCase(
             request.Url);
 
         spots.UpsertWebLink(webLink);
-        return Task.FromResult(KawaResult<UpdateWebLink.Response>.Success(new UpdateWebLink.Response(webLink)));
+        var mapper = new PublicResourceMapper(users.List(), actor);
+        return Task.FromResult(KawaResult<UpdateWebLink.Response>.Success(
+            new UpdateWebLink.Response(mapper.ToWebLink(webLink))));
     }
 }

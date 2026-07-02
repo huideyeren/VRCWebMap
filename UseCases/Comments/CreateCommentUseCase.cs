@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Spots;
 using VrcWebMap.Backend.UseCases.Users;
 
@@ -19,6 +20,7 @@ namespace VrcWebMap.Backend.UseCases.Comments;
 /// </summary>
 public sealed class CreateCommentUseCase(
     ISpotRepository spots,
+    IDiscordUserRepository users,
     ICurrentActorAccessor currentActor)
     : IUseCase<CreateComment.Request, CreateComment.Response>
 {
@@ -61,7 +63,8 @@ public sealed class CreateCommentUseCase(
 
         spots.UpsertComment(comment);
 
-        var response = new CreateComment.Response(comment);
+        var mapper = new PublicResourceMapper(users.List(), actor);
+        var response = new CreateComment.Response(mapper.ToComment(comment));
         return Task.FromResult(KawaResult<CreateComment.Response>.Success(response));
     }
 }

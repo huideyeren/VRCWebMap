@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.VRChatWorlds;
 
 /// <summary>
@@ -36,5 +34,5 @@ public static class CreateVRChatWorld
     /// 登録された VRChat ワールド情報を返すレスポンスです。
     /// </summary>
     /// <param name="World">登録された VRChat ワールド情報です。</param>
-    public sealed record Response(VRChatWorld World);
+    public sealed record Response(VRChatWorldData World);
 }

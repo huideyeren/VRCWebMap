@@ -1,5 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Spots;
+using VrcWebMap.Backend.UseCases.Resources;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Spots;
 
@@ -13,7 +15,10 @@ namespace VrcWebMap.Backend.UseCases.Spots;
 /// <summary>
 /// 指定されたスポットを取得するユースケースです。
 /// </summary>
-public sealed class GetSpotUseCase(ISpotRepository spots)
+public sealed class GetSpotUseCase(
+    ISpotRepository spots,
+    IDiscordUserRepository users,
+    ICurrentActorAccessor currentActor)
     : IUseCase<GetSpot.Request, GetSpot.Response>
 {
     /// <summary>
@@ -32,12 +37,17 @@ public sealed class GetSpotUseCase(ISpotRepository spots)
             return Task.FromResult(KawaResult<GetSpot.Response>.Failure(error));
         }
 
+        var worlds = spots.ListWorlds().Where(world => world.SpotId == spot.Id).ToArray();
+        var placeInfos = spots.ListPlaceInfos().Where(placeInfo => placeInfo.SpotId == spot.Id).ToArray();
+        var webLinks = spots.ListWebLinks().Where(webLink => webLink.SpotId == spot.Id).ToArray();
+        var comments = spots.ListComments().Where(comment => comment.SpotId == spot.Id).ToArray();
+        var mapper = new PublicResourceMapper(users.List(), currentActor.GetCurrent());
         var response = new GetSpot.Response(
-            spot,
-            spots.ListWorlds().Where(world => world.SpotId == spot.Id).ToArray(),
-            spots.ListPlaceInfos().Where(placeInfo => placeInfo.SpotId == spot.Id).ToArray(),
-            spots.ListWebLinks().Where(webLink => webLink.SpotId == spot.Id).ToArray(),
-            spots.ListComments().Where(comment => comment.SpotId == spot.Id).ToArray());
+            mapper.ToSpot(spot, worlds.Length > 0, placeInfos.Length > 0),
+            worlds.Select(mapper.ToVRChatWorld).ToArray(),
+            placeInfos.Select(mapper.ToPlaceInfo).ToArray(),
+            webLinks.Select(mapper.ToWebLink).ToArray(),
+            comments.Select(mapper.ToComment).ToArray());
         return Task.FromResult(KawaResult<GetSpot.Response>.Success(response));
     }
 }

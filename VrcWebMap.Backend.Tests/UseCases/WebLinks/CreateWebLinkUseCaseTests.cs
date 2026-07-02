@@ -24,10 +24,12 @@ public sealed class CreateWebLinkUseCaseTests
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        Assert.Equal(spot.Id, result.Value.WebLink.SpotId);
-        Assert.Equal("discord-user-id", result.Value.WebLink.RegisteredByUserId);
+        Assert.Equal("VRChat User", result.Value.WebLink.RegisteredByDisplayName);
+        Assert.True(result.Value.WebLink.CanEdit);
         Assert.Equal("公式サイト", result.Value.WebLink.SiteName);
-        Assert.Single(repository.SavedWebLinks);
+        var saved = Assert.Single(repository.SavedWebLinks);
+        Assert.Equal(spot.Id, saved.SpotId);
+        Assert.Equal("discord-user-id", saved.RegisteredByUserId);
     }
 
     [Fact]
@@ -69,6 +71,7 @@ public sealed class CreateWebLinkUseCaseTests
     private static CreateWebLinkUseCase CreateUseCase(FakeSpotRepository repository) =>
         new(
             repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("discord-user-id"),
             new FakeCurrentActorAccessor(new CurrentActor(
                 "discord-user-id",
                 IsAdmin: false,

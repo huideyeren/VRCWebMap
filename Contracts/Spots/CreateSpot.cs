@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.Spots;
 
 /// <summary>
@@ -26,5 +24,5 @@ public static class CreateSpot
     /// 作成されたスポットを返すレスポンスです。
     /// </summary>
     /// <param name="Spot">作成されたスポットです。</param>
-    public sealed record Response(Spot Spot);
+    public sealed record Response(SpotData Spot);
 }

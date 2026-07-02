@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.PlaceInfos;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Spots;
 using VrcWebMap.Backend.UseCases.Users;
 
@@ -19,6 +20,7 @@ namespace VrcWebMap.Backend.UseCases.PlaceInfos;
 /// </summary>
 public sealed class CreatePlaceInfoUseCase(
     ISpotRepository spots,
+    IDiscordUserRepository users,
     ICurrentActorAccessor currentActor)
     : IUseCase<CreatePlaceInfo.Request, CreatePlaceInfo.Response>
 {
@@ -65,7 +67,8 @@ public sealed class CreatePlaceInfoUseCase(
 
         spots.UpsertPlaceInfo(placeInfo);
 
-        var response = new CreatePlaceInfo.Response(placeInfo);
+        var mapper = new PublicResourceMapper(users.List(), actor);
+        var response = new CreatePlaceInfo.Response(mapper.ToPlaceInfo(placeInfo));
         return Task.FromResult(KawaResult<CreatePlaceInfo.Response>.Success(response));
     }
 }

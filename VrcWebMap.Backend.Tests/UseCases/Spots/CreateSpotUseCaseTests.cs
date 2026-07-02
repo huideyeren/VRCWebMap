@@ -15,6 +15,7 @@ public sealed class CreateSpotUseCaseTests
         var repository = new FakeSpotRepository();
         var useCase = new CreateSpotUseCase(
             repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("owner-user", "Owner"),
             new FakeCurrentActorAccessor(new CurrentActor("owner-user", IsAdmin: false, HasVRChatDisplayName: true)));
         var request = new CreateSpot.Request(
             "  テストスポット  ",
@@ -27,15 +28,17 @@ public sealed class CreateSpotUseCaseTests
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        Assert.Equal("owner-user", result.Value.Spot.RegisteredByUserId);
+        Assert.Equal("Owner", result.Value.Spot.RegisteredByDisplayName);
+        Assert.True(result.Value.Spot.CanEdit);
         Assert.Equal("テストスポット", result.Value.Spot.Name);
         Assert.Equal(35.681236, result.Value.Spot.Latitude);
         Assert.Equal(139.767125, result.Value.Spot.Longitude);
         Assert.Equal(AreaCodes.Japan.Tokyo, result.Value.Spot.AreaCode);
         Assert.Equal("Markdown 説明", result.Value.Spot.Description);
         Assert.NotEqual(Guid.Empty, result.Value.Spot.Id);
-        Assert.Single(repository.SavedSpots);
-        Assert.Equal(result.Value.Spot, repository.SavedSpots[0]);
+        var saved = Assert.Single(repository.SavedSpots);
+        Assert.Equal("owner-user", saved.RegisteredByUserId);
+        Assert.Equal(result.Value.Spot.Id, saved.Id);
     }
 
     [Theory]
@@ -55,6 +58,7 @@ public sealed class CreateSpotUseCaseTests
         var repository = new FakeSpotRepository();
         var useCase = new CreateSpotUseCase(
             repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("owner-user"),
             new FakeCurrentActorAccessor(new CurrentActor("owner-user", IsAdmin: false, HasVRChatDisplayName: true)));
         var request = new CreateSpot.Request(name, latitude, longitude, areaCode, description);
 
@@ -73,6 +77,7 @@ public sealed class CreateSpotUseCaseTests
         var repository = new FakeSpotRepository();
         var useCase = new CreateSpotUseCase(
             repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("owner-user"),
             new FakeCurrentActorAccessor(new CurrentActor("owner-user", IsAdmin: false, HasVRChatDisplayName: false)));
         var request = new CreateSpot.Request(
             "スポット",

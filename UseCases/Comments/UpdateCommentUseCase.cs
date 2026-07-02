@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Spots;
 using VrcWebMap.Backend.UseCases.Users;
 
@@ -16,6 +17,7 @@ namespace VrcWebMap.Backend.UseCases.Comments;
 [KawaErrorResponse(KawaErrorKind.Forbidden, Description = "コメントを変更する権限がありません。")]
 public sealed class UpdateCommentUseCase(
     ISpotRepository spots,
+    IDiscordUserRepository users,
     ICurrentActorAccessor currentActor)
     : IUseCase<UpdateComment.Request, UpdateComment.Response>
 {
@@ -39,6 +41,8 @@ public sealed class UpdateCommentUseCase(
 
         var comment = new Comment(existing.Id, existing.SpotId, existing.RegisteredByUserId, request.Comments.Trim());
         spots.UpsertComment(comment);
-        return Task.FromResult(KawaResult<UpdateComment.Response>.Success(new UpdateComment.Response(comment)));
+        var mapper = new PublicResourceMapper(users.List(), actor);
+        return Task.FromResult(KawaResult<UpdateComment.Response>.Success(
+            new UpdateComment.Response(mapper.ToComment(comment))));
     }
 }

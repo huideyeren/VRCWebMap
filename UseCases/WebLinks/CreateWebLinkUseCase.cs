@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.WebLinks;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Spots;
 using VrcWebMap.Backend.UseCases.Users;
 
@@ -16,6 +17,7 @@ namespace VrcWebMap.Backend.UseCases.WebLinks;
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "スポットが見つかりません。")]
 public sealed class CreateWebLinkUseCase(
     ISpotRepository spots,
+    IDiscordUserRepository users,
     ICurrentActorAccessor currentActor)
     : IUseCase<CreateWebLink.Request, CreateWebLink.Response>
 {
@@ -56,7 +58,8 @@ public sealed class CreateWebLinkUseCase(
 
         spots.UpsertWebLink(webLink);
 
-        var response = new CreateWebLink.Response(webLink);
+        var mapper = new PublicResourceMapper(users.List(), actor);
+        var response = new CreateWebLink.Response(mapper.ToWebLink(webLink));
         return Task.FromResult(KawaResult<CreateWebLink.Response>.Success(response));
     }
 }

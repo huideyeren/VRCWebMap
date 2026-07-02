@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.PlaceInfos;
 
 /// <summary>
@@ -24,5 +22,5 @@ public static class UpdatePlaceInfo
     /// 更新された場所情報を返すレスポンスです。
     /// </summary>
     /// <param name="PlaceInfo">更新された場所情報です。</param>
-    public sealed record Response(PlaceInfo PlaceInfo);
+    public sealed record Response(PlaceInfoData PlaceInfo);
 }

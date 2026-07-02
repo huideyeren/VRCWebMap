@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.VRChatWorlds;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Spots;
 using VrcWebMap.Backend.UseCases.Users;
 
@@ -19,6 +20,7 @@ namespace VrcWebMap.Backend.UseCases.VRChatWorlds;
 /// </summary>
 public sealed class CreateVRChatWorldUseCase(
     ISpotRepository spots,
+    IDiscordUserRepository users,
     ICurrentActorAccessor currentActor)
     : IUseCase<CreateVRChatWorld.Request, CreateVRChatWorld.Response>
 {
@@ -71,7 +73,8 @@ public sealed class CreateVRChatWorldUseCase(
 
         spots.UpsertWorld(world);
 
-        var response = new CreateVRChatWorld.Response(world);
+        var mapper = new PublicResourceMapper(users.List(), actor);
+        var response = new CreateVRChatWorld.Response(mapper.ToVRChatWorld(world));
         return Task.FromResult(KawaResult<CreateVRChatWorld.Response>.Success(response));
     }
 }

@@ -23,10 +23,12 @@ public sealed class CreateCommentUseCaseTests
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        Assert.Equal(spot.Id, result.Value.Comment.SpotId);
-        Assert.Equal("discord-user-id", result.Value.Comment.RegisteredByUserId);
+        Assert.Equal("VRChat User", result.Value.Comment.RegisteredByDisplayName);
+        Assert.True(result.Value.Comment.CanEdit);
         Assert.Equal("コメント本文", result.Value.Comment.Comments);
-        Assert.Single(repository.SavedComments);
+        var saved = Assert.Single(repository.SavedComments);
+        Assert.Equal(spot.Id, saved.SpotId);
+        Assert.Equal("discord-user-id", saved.RegisteredByUserId);
     }
 
     [Fact]
@@ -66,6 +68,7 @@ public sealed class CreateCommentUseCaseTests
     private static CreateCommentUseCase CreateUseCase(FakeSpotRepository repository) =>
         new(
             repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("discord-user-id"),
             new FakeCurrentActorAccessor(new CurrentActor(
                 "discord-user-id",
                 IsAdmin: false,

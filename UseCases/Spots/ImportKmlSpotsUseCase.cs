@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Spots;
@@ -18,6 +19,7 @@ namespace VrcWebMap.Backend.UseCases.Spots;
 /// </summary>
 public sealed class ImportKmlSpotsUseCase(
     ISpotRepository spots,
+    IDiscordUserRepository users,
     ICurrentActorAccessor currentActor)
     : IUseCase<ImportKmlSpots.Request, ImportKmlSpots.Response>
 {
@@ -59,8 +61,9 @@ public sealed class ImportKmlSpotsUseCase(
             importedSpots.Add(spot);
         }
 
+        var mapper = new PublicResourceMapper(users.List(), actor);
         var response = new ImportKmlSpots.Response(
-            importedSpots.ToArray(),
+            importedSpots.Select(spot => mapper.ToSpot(spot)).ToArray(),
             parseResult.Warnings,
             parseResult.UnsupportedPlacemarkCount);
         return Task.FromResult(KawaResult<ImportKmlSpots.Response>.Success(response));

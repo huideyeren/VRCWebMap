@@ -49,6 +49,7 @@ public sealed class KmlImportUseCaseTests
         var repository = new FakeSpotRepository();
         var useCase = new ImportKmlSpotsUseCase(
             repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("admin-user", "Admin"),
             Writer("admin-user", isAdmin: true));
 
         var result = await useCase.ExecuteAsync(new ImportKmlSpots.Request(
@@ -58,12 +59,14 @@ public sealed class KmlImportUseCaseTests
 
         Assert.True(result.IsSuccess);
         var spot = Assert.Single(result.Value!.Spots);
-        Assert.Equal("admin-user", spot.RegisteredByUserId);
+        Assert.Equal("Admin", spot.RegisteredByDisplayName);
+        Assert.True(spot.CanEdit);
         Assert.Equal("井の頭公園駅", spot.Name);
         Assert.Equal(35.697484, spot.Latitude);
         Assert.Equal(139.582739, spot.Longitude);
         Assert.Equal(AreaCodes.Japan.Tokyo, spot.AreaCode);
         Assert.True(repository.Exists(spot.Id));
+        Assert.Equal("admin-user", Assert.Single(repository.SavedSpots).RegisteredByUserId);
     }
 
     [Fact]

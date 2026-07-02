@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.WebLinks;
 
 /// <summary>
@@ -22,5 +20,5 @@ public static class UpdateWebLink
     /// 更新された Web サイト情報を返すレスポンスです。
     /// </summary>
     /// <param name="WebLink">更新された Web サイト情報です。</param>
-    public sealed record Response(WebLink WebLink);
+    public sealed record Response(WebLinkData WebLink);
 }

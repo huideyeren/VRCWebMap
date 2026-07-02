@@ -29,4 +29,25 @@ internal sealed class FakeDiscordUserRepository(params DiscordUser[] initialUser
         users[user.DiscordUserId] = user;
         SavedUsers.Add(user);
     }
+
+    public static FakeDiscordUserRepository WithVRChatDisplayName(
+        string userId,
+        string displayName = "VRChat User",
+        bool isAdmin = false)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new FakeDiscordUserRepository(
+            new DiscordUser(
+                userId,
+                userId,
+                GlobalName: null,
+                AvatarHash: null,
+                RequiredGuildId: "guild",
+                IsGuildMember: true,
+                IsAdmin: isAdmin,
+                RegisteredAt: now,
+                LastSeenAt: now,
+                VRChatDisplayName: displayName,
+                NormalizedVRChatDisplayName: displayName.ToUpperInvariant()));
+    }
 }

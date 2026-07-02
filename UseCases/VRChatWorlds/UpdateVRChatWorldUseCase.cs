@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.VRChatWorlds;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Spots;
 using VrcWebMap.Backend.UseCases.Users;
 
@@ -16,6 +17,7 @@ namespace VrcWebMap.Backend.UseCases.VRChatWorlds;
 [KawaErrorResponse(KawaErrorKind.Forbidden, Description = "VRChat ワールド情報を変更する権限がありません。")]
 public sealed class UpdateVRChatWorldUseCase(
     ISpotRepository spots,
+    IDiscordUserRepository users,
     ICurrentActorAccessor currentActor)
     : IUseCase<UpdateVRChatWorld.Request, UpdateVRChatWorld.Response>
 {
@@ -52,6 +54,8 @@ public sealed class UpdateVRChatWorldUseCase(
             request.IsPrivate);
 
         spots.UpsertWorld(world);
-        return Task.FromResult(KawaResult<UpdateVRChatWorld.Response>.Success(new UpdateVRChatWorld.Response(world)));
+        var mapper = new PublicResourceMapper(users.List(), actor);
+        return Task.FromResult(KawaResult<UpdateVRChatWorld.Response>.Success(
+            new UpdateVRChatWorld.Response(mapper.ToVRChatWorld(world))));
     }
 }

@@ -30,11 +30,13 @@ public sealed class CreateVRChatWorldUseCaseTests
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        Assert.Equal(spot.Id, result.Value.World.SpotId);
-        Assert.Equal("discord-user-id", result.Value.World.RegisteredByUserId);
+        Assert.Equal("VRChat User", result.Value.World.RegisteredByDisplayName);
+        Assert.True(result.Value.World.CanEdit);
         Assert.Equal("wrld_00000000-0000-0000-0000-000000000000", result.Value.World.VRChatWorldId);
-        Assert.Equal("public", result.Value.World.ReleaseStatus);
-        Assert.Single(repository.SavedWorlds);
+        Assert.False(result.Value.World.IsPrivate);
+        var saved = Assert.Single(repository.SavedWorlds);
+        Assert.Equal(spot.Id, saved.SpotId);
+        Assert.Equal("discord-user-id", saved.RegisteredByUserId);
     }
 
     [Fact]
@@ -88,6 +90,7 @@ public sealed class CreateVRChatWorldUseCaseTests
     private static CreateVRChatWorldUseCase CreateUseCase(FakeSpotRepository repository) =>
         new(
             repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("discord-user-id"),
             new FakeCurrentActorAccessor(new CurrentActor(
                 "discord-user-id",
                 IsAdmin: false,

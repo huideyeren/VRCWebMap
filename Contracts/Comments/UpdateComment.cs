@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.Comments;
 
 /// <summary>
@@ -18,5 +16,5 @@ public static class UpdateComment
     /// 更新されたコメントを返すレスポンスです。
     /// </summary>
     /// <param name="Comment">更新されたコメントです。</param>
-    public sealed record Response(Comment Comment);
+    public sealed record Response(CommentData Comment);
 }
