@@ -2,6 +2,8 @@ using System.Text.Json.Serialization;
 using VrcWebMap.Backend.Contracts.Areas;
 using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.Contracts.Portal;
+using VrcWebMap.Backend.Contracts.PortalCategories;
+using VrcWebMap.Backend.Contracts.PortalWorlds;
 using VrcWebMap.Backend.Contracts.PlaceInfos;
 using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Contracts.Users;
@@ -62,6 +64,31 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(GetWorldData.World), TypeInfoPropertyName = "GetWorldDataWorld")]
 [JsonSerializable(typeof(GetWorldData.World[]), TypeInfoPropertyName = "GetWorldDataWorldArray")]
 [JsonSerializable(typeof(GetWorldData.Platform), TypeInfoPropertyName = "GetWorldDataPlatform")]
+[JsonSerializable(typeof(GetWorldData.Role), TypeInfoPropertyName = "GetWorldDataRole")]
+[JsonSerializable(typeof(GetWorldData.Role[]), TypeInfoPropertyName = "GetWorldDataRoleArray")]
+[JsonSerializable(typeof(MergeWorldData.Request), TypeInfoPropertyName = "MergeWorldDataRequest")]
+[JsonSerializable(typeof(MergeWorldData.Response), TypeInfoPropertyName = "MergeWorldDataResponse")]
+[JsonSerializable(typeof(PortalCategory))]
+[JsonSerializable(typeof(PortalCategory[]))]
+[JsonSerializable(typeof(PortalCategoryVisibility))]
+[JsonSerializable(typeof(PortalCategoryData), TypeInfoPropertyName = "PortalCategoryData")]
+[JsonSerializable(typeof(PortalCategoryData[]), TypeInfoPropertyName = "PortalCategoryDataArray")]
+[JsonSerializable(typeof(ListPortalCategories.Request), TypeInfoPropertyName = "ListPortalCategoriesRequest")]
+[JsonSerializable(typeof(ListPortalCategories.Response), TypeInfoPropertyName = "ListPortalCategoriesResponse")]
+[JsonSerializable(typeof(CreatePortalCategory.Request), TypeInfoPropertyName = "CreatePortalCategoryRequest")]
+[JsonSerializable(typeof(CreatePortalCategory.Response), TypeInfoPropertyName = "CreatePortalCategoryResponse")]
+[JsonSerializable(typeof(UpdatePortalCategory.Request), TypeInfoPropertyName = "UpdatePortalCategoryRequest")]
+[JsonSerializable(typeof(UpdatePortalCategory.Response), TypeInfoPropertyName = "UpdatePortalCategoryResponse")]
+[JsonSerializable(typeof(DeletePortalCategory.Request), TypeInfoPropertyName = "DeletePortalCategoryRequest")]
+[JsonSerializable(typeof(DeletePortalCategory.Response), TypeInfoPropertyName = "DeletePortalCategoryResponse")]
+[JsonSerializable(typeof(CreatePortalWorld.Request), TypeInfoPropertyName = "CreatePortalWorldRequest")]
+[JsonSerializable(typeof(CreatePortalWorld.Response), TypeInfoPropertyName = "CreatePortalWorldResponse")]
+[JsonSerializable(typeof(UpdatePortalWorld.Request), TypeInfoPropertyName = "UpdatePortalWorldRequest")]
+[JsonSerializable(typeof(UpdatePortalWorld.Response), TypeInfoPropertyName = "UpdatePortalWorldResponse")]
+[JsonSerializable(typeof(DeletePortalWorld.Request), TypeInfoPropertyName = "DeletePortalWorldRequest")]
+[JsonSerializable(typeof(DeletePortalWorld.Response), TypeInfoPropertyName = "DeletePortalWorldResponse")]
+[JsonSerializable(typeof(MovePortalWorld.Request), TypeInfoPropertyName = "MovePortalWorldRequest")]
+[JsonSerializable(typeof(MovePortalWorld.Response), TypeInfoPropertyName = "MovePortalWorldResponse")]
 [JsonSerializable(typeof(CreateVRChatWorld.Request), TypeInfoPropertyName = "CreateVRChatWorldRequest")]
 [JsonSerializable(typeof(CreateVRChatWorld.Response), TypeInfoPropertyName = "CreateVRChatWorldResponse")]
 [JsonSerializable(typeof(UpdateVRChatWorld.Request), TypeInfoPropertyName = "UpdateVRChatWorldRequest")]

@@ -19,6 +19,9 @@ public static class PortalEndpoints
         endpoints.MapKawaPost<GetWorldDataUseCase>("/portal/world-data")
             .WithName("GetPortalWorldData")
             .WithContractOpenApi<GetWorldData.Request, GetWorldData.Response>();
+        endpoints.MapKawaPost<MergeWorldDataUseCase>("/portal/world-data/merge")
+            .WithName("MergePortalWorldData")
+            .WithContractOpenApi<MergeWorldData.Request, MergeWorldData.Response>();
 
         return endpoints;
     }

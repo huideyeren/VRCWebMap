@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using VrcWebMap.Backend.Contracts.Areas;
 using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.Contracts.Portal;
+using VrcWebMap.Backend.Contracts.PortalCategories;
+using VrcWebMap.Backend.Contracts.PortalWorlds;
 using VrcWebMap.Backend.Contracts.PlaceInfos;
 using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Contracts.Users;
@@ -19,6 +21,8 @@ using VrcWebMap.Backend.Stores;
 using VrcWebMap.Backend.UseCases.Areas;
 using VrcWebMap.Backend.UseCases.Comments;
 using VrcWebMap.Backend.UseCases.Portal;
+using VrcWebMap.Backend.UseCases.PortalCategories;
+using VrcWebMap.Backend.UseCases.PortalWorlds;
 using VrcWebMap.Backend.UseCases.PlaceInfos;
 using VrcWebMap.Backend.UseCases.Spots;
 using VrcWebMap.Backend.UseCases.Users;
@@ -84,11 +88,13 @@ if (string.Equals(databaseProvider, "PostgreSQL", StringComparison.OrdinalIgnore
     builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
     builder.Services.AddScoped<ISpotRepository, PostgreSqlSpotRepository>();
     builder.Services.AddScoped<IDiscordUserRepository, PostgreSqlDiscordUserRepository>();
+    builder.Services.AddScoped<IPortalCategoryRepository, PostgreSqlPortalCategoryRepository>();
 }
 else
 {
     builder.Services.AddSingleton<ISpotRepository, InMemorySpotRepository>();
     builder.Services.AddSingleton<IDiscordUserRepository, InMemoryDiscordUserRepository>();
+    builder.Services.AddSingleton<IPortalCategoryRepository, InMemoryPortalCategoryRepository>();
 }
 
 builder.Services
@@ -150,6 +156,7 @@ app.MapUsers();
 app.MapAreas();
 app.MapSpots();
 app.MapSpotContent();
+app.MapPortalCategories();
 app.MapPortal();
 app.MapKawaApiCatalog();
 app.MapKawaOpenApi();
@@ -174,7 +181,18 @@ static void AddUseCases(IServiceCollection services)
     services.AddScoped<IUseCase<CreateComment.Request, CreateComment.Response>, CreateCommentUseCase>();
     services.AddScoped<IUseCase<DeleteComment.Request, DeleteComment.Response>, DeleteCommentUseCase>();
     services.AddScoped<IUseCase<UpdateComment.Request, UpdateComment.Response>, UpdateCommentUseCase>();
-    services.AddScoped<IUseCase<GetWorldData.Request, GetWorldData.Response>, GetWorldDataUseCase>();
+    services.AddScoped<GetWorldDataUseCase>();
+    services.AddScoped<IUseCase<GetWorldData.Request, GetWorldData.Response>>(
+        provider => provider.GetRequiredService<GetWorldDataUseCase>());
+    services.AddScoped<IUseCase<MergeWorldData.Request, MergeWorldData.Response>, MergeWorldDataUseCase>();
+    services.AddScoped<IUseCase<ListPortalCategories.Request, ListPortalCategories.Response>, ListPortalCategoriesUseCase>();
+    services.AddScoped<IUseCase<CreatePortalCategory.Request, CreatePortalCategory.Response>, CreatePortalCategoryUseCase>();
+    services.AddScoped<IUseCase<UpdatePortalCategory.Request, UpdatePortalCategory.Response>, UpdatePortalCategoryUseCase>();
+    services.AddScoped<IUseCase<DeletePortalCategory.Request, DeletePortalCategory.Response>, DeletePortalCategoryUseCase>();
+    services.AddScoped<IUseCase<CreatePortalWorld.Request, CreatePortalWorld.Response>, CreatePortalWorldUseCase>();
+    services.AddScoped<IUseCase<UpdatePortalWorld.Request, UpdatePortalWorld.Response>, UpdatePortalWorldUseCase>();
+    services.AddScoped<IUseCase<DeletePortalWorld.Request, DeletePortalWorld.Response>, DeletePortalWorldUseCase>();
+    services.AddScoped<IUseCase<MovePortalWorld.Request, MovePortalWorld.Response>, MovePortalWorldUseCase>();
     services.AddScoped<IUseCase<CreatePlaceInfo.Request, CreatePlaceInfo.Response>, CreatePlaceInfoUseCase>();
     services.AddScoped<IUseCase<DeletePlaceInfo.Request, DeletePlaceInfo.Response>, DeletePlaceInfoUseCase>();
     services.AddScoped<IUseCase<UpdatePlaceInfo.Request, UpdatePlaceInfo.Response>, UpdatePlaceInfoUseCase>();
@@ -206,6 +224,13 @@ static bool IsWriteEndpoint(PathString path) =>
     path.StartsWithSegments("/vrchat-worlds/create") ||
     path.StartsWithSegments("/vrchat-worlds/update") ||
     path.StartsWithSegments("/vrchat-worlds/delete") ||
+    path.StartsWithSegments("/portal-categories/create") ||
+    path.StartsWithSegments("/portal-categories/update") ||
+    path.StartsWithSegments("/portal-categories/delete") ||
+    path.StartsWithSegments("/portal-worlds/create") ||
+    path.StartsWithSegments("/portal-worlds/update") ||
+    path.StartsWithSegments("/portal-worlds/delete") ||
+    path.StartsWithSegments("/portal-worlds/move") ||
     path.StartsWithSegments("/place-infos/create") ||
     path.StartsWithSegments("/place-infos/update") ||
     path.StartsWithSegments("/place-infos/delete") ||
