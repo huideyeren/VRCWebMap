@@ -2,6 +2,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { toggleFormPanel, type FormPanel } from "./collapsible-panels";
 import { createSpotIcon, getCurrentPosition } from "./map-ui";
 import { getSpotCategoryKey, groupSpotsByArea } from "./spot-regions";
 
@@ -786,6 +787,17 @@ function SpotDetails({ spot, details, areas, currentUser, registrantName, onCrea
     const placeInfos = details?.placeInfos ?? [];
     const webLinks = details?.webLinks ?? [];
     const comments = details?.comments ?? [];
+    const [activeFormPanel, setActiveFormPanel] = useState<FormPanel | null>(null);
+    const canShowEdit = currentUser?.hasVRChatDisplayName &&
+        canEditSelectedDetails(currentUser, spot, worlds, placeInfos, webLinks, comments);
+
+    useEffect(() => {
+        setActiveFormPanel(null);
+    }, [spot.id]);
+
+    function togglePanel(panel: FormPanel) {
+        setActiveFormPanel((current) => toggleFormPanel(current, panel));
+    }
 
     return React.createElement("section", { className: "card" },
         React.createElement("h3", null, spot.name),
@@ -793,26 +805,80 @@ function SpotDetails({ spot, details, areas, currentUser, registrantName, onCrea
         React.createElement("p", { className: "meta" }, `座標: ${formatCoordinate(spot.latitude)}, ${formatCoordinate(spot.longitude)}`),
         React.createElement("p", { className: "meta" }, `地域: ${formatAreaName(spot.areaCode, areas)}`),
         currentUser?.hasVRChatDisplayName
-            ? React.createElement(AddContentForms, { spot, registrantName, onCreated, onMessage })
+            ? React.createElement("div", {
+                key: spot.id,
+                className: "spot-form-accordions"
+            },
+                React.createElement(CollapsiblePanel, {
+                    title: "情報を追加",
+                    open: activeFormPanel === "add",
+                    onToggle: () => togglePanel("add"),
+                    contentId: `spot-add-${spot.id}`
+                }, React.createElement(AddContentForms, {
+                    spot,
+                    registrantName,
+                    onCreated,
+                    onSaved: () => setActiveFormPanel(null),
+                    onMessage
+                })),
+                canShowEdit ? React.createElement(CollapsiblePanel, {
+                    title: currentUser.isAdmin ? "管理者編集" : "登録者編集",
+                    open: activeFormPanel === "edit",
+                    onToggle: () => togglePanel("edit"),
+                    contentId: `spot-edit-${spot.id}`
+                }, React.createElement(AdminPanel, {
+                    spot,
+                    worlds,
+                    placeInfos,
+                    webLinks,
+                    comments,
+                    areas,
+                    currentUser,
+                    onChanged: onSpotUpdated,
+                    onDeleted: onSpotDeleted,
+                    onSaved: () => setActiveFormPanel(null),
+                    onMessage
+                })) : null
+            )
             : currentUser
                 ? React.createElement(ProfileRequiredNotice)
                 : React.createElement(LoginRequiredNotice),
-        currentUser?.hasVRChatDisplayName && canEditSelectedDetails(currentUser, spot, worlds, placeInfos, webLinks, comments) ? React.createElement(AdminPanel, {
-            spot,
-            worlds,
-            placeInfos,
-            webLinks,
-            comments,
-            areas,
-            currentUser,
-            onChanged: onSpotUpdated,
-            onDeleted: onSpotDeleted,
-            onMessage
-        }) : null,
         React.createElement(RelatedSection, { title: "VRChat Worlds", items: worlds, render: renderWorld }),
         React.createElement(RelatedSection, { title: "Place Infos", items: placeInfos, render: renderPlaceInfo }),
         React.createElement(RelatedSection, { title: "Web Links", items: webLinks, render: renderWebLink }),
         React.createElement(RelatedSection, { title: "Comments", items: comments, render: renderComment })
+    );
+}
+
+function CollapsiblePanel({
+    title,
+    open,
+    onToggle,
+    contentId,
+    children
+}: {
+    title: string;
+    open: boolean;
+    onToggle: () => void;
+    contentId: string;
+    children?: React.ReactNode;
+}) {
+    return React.createElement("section", { className: "collapsible-form-panel" },
+        React.createElement("button", {
+            type: "button",
+            className: "collapsible-form-heading",
+            "aria-expanded": open,
+            "aria-controls": contentId,
+            onClick: onToggle
+        },
+            React.createElement("span", null, title),
+            React.createElement("span", { className: "collapsible-form-chevron", "aria-hidden": "true" }, open ? "⌄" : "›")
+        ),
+        React.createElement("div", {
+            id: contentId,
+            className: "collapsible-form-content",
+            hidden: !open
+        }, children)
     );
 }
 
@@ -906,7 +972,7 @@ function canEditSelectedDetails(user, spot, worlds, placeInfos, webLinks, commen
     ));
 }
 
-function AddContentForms({ spot, registrantName, onCreated, onMessage }) {
+function AddContentForms({ spot, registrantName, onCreated, onSaved, onMessage }) {
     const [kind, setKind] = useState("world");
     const [isSaving, setIsSaving] = useState(false);
     const [world, setWorld] = useState(createEmptyWorld());
@@ -958,6 +1024,7 @@ function AddContentForms({ spot, registrantName, onCreated, onMessage }) {
             }
 
             await onCreated(spot.id);
+            onSaved();
             onMessage("追加しました。");
         } catch (error) {
             onMessage(error.message);
@@ -982,7 +1049,7 @@ function AddContentForms({ spot, registrantName, onCreated, onMessage }) {
     );
 }
 
-export function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, currentUser, onChanged, onDeleted, onMessage }) {
+export function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, currentUser, onChanged, onDeleted, onSaved = () => {}, onMessage }) {
     const canDelete = currentUser.isAdmin;
     const editableWorlds = editableItems(worlds);
     const editablePlaceInfos = editableItems(placeInfos);
@@ -995,15 +1062,15 @@ export function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas
         React.createElement("p", { className: "meta" }, currentUser.isAdmin
             ? "管理者として Spot と関連データを編集・削除できます。"
             : "あなたが登録した Spot と関連データを編集できます。削除は管理者のみ可能です。"),
-        canEditItem(spot) ? React.createElement(AdminSpotEditor, { spot, areas, canDelete, onChanged, onDeleted, onMessage }) : null,
-        React.createElement(AdminWorldSection, { items: editableWorlds, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminPlaceInfoSection, { items: editablePlaceInfos, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminWebLinkSection, { items: editableWebLinks, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminCommentSection, { items: editableComments, canDelete, onChanged: () => onChanged(spot.id), onMessage })
+        canEditItem(spot) ? React.createElement(AdminSpotEditor, { spot, areas, canDelete, onChanged, onDeleted, onSaved, onMessage }) : null,
+        React.createElement(AdminWorldSection, { items: editableWorlds, canDelete, onChanged: () => onChanged(spot.id), onSaved, onMessage }),
+        React.createElement(AdminPlaceInfoSection, { items: editablePlaceInfos, canDelete, onChanged: () => onChanged(spot.id), onSaved, onMessage }),
+        React.createElement(AdminWebLinkSection, { items: editableWebLinks, canDelete, onChanged: () => onChanged(spot.id), onSaved, onMessage }),
+        React.createElement(AdminCommentSection, { items: editableComments, canDelete, onChanged: () => onChanged(spot.id), onSaved, onMessage })
     );
 }
 
-function AdminSpotEditor({ spot, areas, canDelete, onChanged, onDeleted, onMessage }) {
+function AdminSpotEditor({ spot, areas, canDelete, onChanged, onDeleted, onSaved, onMessage }) {
     const [draft, setDraft] = useState(createSpotDraft(spot));
     const [isSaving, setIsSaving] = useState(false);
 
@@ -1026,6 +1093,7 @@ function AdminSpotEditor({ spot, areas, canDelete, onChanged, onDeleted, onMessa
                 description: draft.description
             });
             await onChanged(updated.id);
+            onSaved();
             onMessage("Spot を更新しました。");
         } catch (error) {
             onMessage(error.message);
@@ -1068,7 +1136,7 @@ function AdminSpotEditor({ spot, areas, canDelete, onChanged, onDeleted, onMessa
     );
 }
 
-function AdminWorldSection({ items, canDelete, onChanged, onMessage }) {
+function AdminWorldSection({ items, canDelete, onChanged, onSaved, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "VRChat Worlds",
         items,
@@ -1090,11 +1158,12 @@ function AdminWorldSection({ items, canDelete, onChanged, onMessage }) {
         onDelete: (world) => deleteVRChatWorld({ id: world.id }),
         canDelete,
         onChanged,
+        onSaved,
         onMessage
     });
 }
 
-function AdminPlaceInfoSection({ items, canDelete, onChanged, onMessage }) {
+function AdminPlaceInfoSection({ items, canDelete, onChanged, onSaved, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Place Infos",
         items,
@@ -1110,11 +1179,12 @@ function AdminPlaceInfoSection({ items, canDelete, onChanged, onMessage }) {
         onDelete: (placeInfo) => deletePlaceInfo({ id: placeInfo.id }),
         canDelete,
         onChanged,
+        onSaved,
         onMessage
     });
 }
 
-function AdminWebLinkSection({ items, canDelete, onChanged, onMessage }) {
+function AdminWebLinkSection({ items, canDelete, onChanged, onSaved, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Web Links",
         items,
@@ -1129,11 +1199,12 @@ function AdminWebLinkSection({ items, canDelete, onChanged, onMessage }) {
         onDelete: (webLink) => deleteWebLink({ id: webLink.id }),
         canDelete,
         onChanged,
+        onSaved,
         onMessage
     });
 }
 
-function AdminCommentSection({ items, canDelete, onChanged, onMessage }) {
+function AdminCommentSection({ items, canDelete, onChanged, onSaved, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Comments",
         items,
@@ -1150,11 +1221,12 @@ function AdminCommentSection({ items, canDelete, onChanged, onMessage }) {
         onDelete: (comment) => deleteComment({ id: comment.id }),
         canDelete,
         onChanged,
+        onSaved,
         onMessage
     });
 }
 
-function AdminEditableSection({ title, items, getLabel, createDraft, renderForm, onUpdate, onDelete, canDelete, onChanged, onMessage }) {
+function AdminEditableSection({ title, items, getLabel, createDraft, renderForm, onUpdate, onDelete, canDelete, onChanged, onSaved, onMessage }) {
     const [editingId, setEditingId] = useState(null);
     const [draft, setDraft] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -1174,6 +1246,7 @@ function AdminEditableSection({ title, items, getLabel, createDraft, renderForm,
             setEditingId(null);
             setDraft(null);
             await onChanged();
+            onSaved();
             onMessage(`${title} を更新しました。`);
         } catch (error) {
             onMessage(error.message);

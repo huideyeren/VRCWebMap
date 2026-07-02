@@ -626,6 +626,61 @@ button.spot-region-heading[aria-expanded="true"] {
         rgba(255, 255, 255, 0.56);
 }
 
+.spot-form-accordions {
+    display: grid;
+    gap: 10px;
+}
+
+.collapsible-form-panel {
+    min-width: 0;
+}
+
+button.collapsible-form-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+    border: 1px solid rgba(13, 112, 88, 0.2);
+    border-radius: 16px;
+    padding: 11px 14px;
+    color: var(--accent-strong);
+    background: rgba(13, 112, 88, 0.08);
+    text-align: left;
+}
+
+button.collapsible-form-heading:hover,
+button.collapsible-form-heading[aria-expanded="true"] {
+    color: #fff;
+    background: var(--accent);
+}
+
+button.collapsible-form-heading:focus-visible {
+    outline: 3px solid rgba(225, 139, 47, 0.72);
+    outline-offset: 2px;
+}
+
+.collapsible-form-heading > span:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.collapsible-form-chevron {
+    flex: 0 0 auto;
+    width: 1em;
+    font-size: 1.15em;
+    line-height: 1;
+    text-align: center;
+}
+
+.collapsible-form-content {
+    padding-top: 10px;
+}
+
+.collapsible-form-content[hidden] {
+    display: none;
+}
+
 .search-card {
     display: grid;
     gap: 12px;
