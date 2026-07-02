@@ -873,30 +873,26 @@ function RelatedSection({ title, items, render }) {
     );
 }
 
-export function getCurrentUserId(user) {
-    return user?.discordUserId ?? user?.userId ?? "";
-}
-
 function getUserDisplayName(user) {
     return user?.vrChatDisplayName ?? user?.displayName ?? user?.username ?? "";
 }
 
-function canEditItem(item, user) {
-    const userId = getCurrentUserId(user);
-    return Boolean(user?.isAdmin || (userId && item?.registeredByUserId === userId));
+function canEditItem(item) {
+    // 所有者IDをブラウザへ公開せず、サーバーが最新の認証状態から判定した結果だけを利用します。
+    return item?.canEdit === true;
 }
 
-function editableItems(items, user) {
-    return user?.isAdmin ? items : items.filter((item) => canEditItem(item, user));
+function editableItems(items) {
+    return items.filter(canEditItem);
 }
 
 function canEditSelectedDetails(user, spot, worlds, placeInfos, webLinks, comments) {
     return Boolean(user && (
-        canEditItem(spot, user) ||
-        worlds.some((item) => canEditItem(item, user)) ||
-        placeInfos.some((item) => canEditItem(item, user)) ||
-        webLinks.some((item) => canEditItem(item, user)) ||
-        comments.some((item) => canEditItem(item, user))
+        canEditItem(spot) ||
+        worlds.some(canEditItem) ||
+        placeInfos.some(canEditItem) ||
+        webLinks.some(canEditItem) ||
+        comments.some(canEditItem)
     ));
 }
 
@@ -978,10 +974,10 @@ function AddContentForms({ spot, registrantName, onCreated, onMessage }) {
 
 export function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, currentUser, onChanged, onDeleted, onMessage }) {
     const canDelete = currentUser.isAdmin;
-    const editableWorlds = editableItems(worlds, currentUser);
-    const editablePlaceInfos = editableItems(placeInfos, currentUser);
-    const editableWebLinks = editableItems(webLinks, currentUser);
-    const editableComments = editableItems(comments, currentUser);
+    const editableWorlds = editableItems(worlds);
+    const editablePlaceInfos = editableItems(placeInfos);
+    const editableWebLinks = editableItems(webLinks);
+    const editableComments = editableItems(comments);
 
     return React.createElement("section", { className: "admin-panel" },
         React.createElement("p", { className: "eyebrow" }, currentUser.isAdmin ? "Admin edit" : "Owner edit"),
@@ -989,7 +985,7 @@ export function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas
         React.createElement("p", { className: "meta" }, currentUser.isAdmin
             ? "管理者として Spot と関連データを編集・削除できます。"
             : "あなたが登録した Spot と関連データを編集できます。削除は管理者のみ可能です。"),
-        canEditItem(spot, currentUser) ? React.createElement(AdminSpotEditor, { spot, areas, canDelete, onChanged, onDeleted, onMessage }) : null,
+        canEditItem(spot) ? React.createElement(AdminSpotEditor, { spot, areas, canDelete, onChanged, onDeleted, onMessage }) : null,
         React.createElement(AdminWorldSection, { items: editableWorlds, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
         React.createElement(AdminPlaceInfoSection, { items: editablePlaceInfos, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
         React.createElement(AdminWebLinkSection, { items: editableWebLinks, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
@@ -1326,7 +1322,7 @@ function renderWorld(world) {
             fallbackTitle: world.name,
             fallbackDescription: world.description
         }),
-        React.createElement("p", { className: "meta" }, `追加ユーザー: ${world.registeredByUserId}`),
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${world.registeredByDisplayName}`),
         React.createElement("p", { className: "meta" }, `人数: ${world.recommendedCapacity} 推奨 / ${world.capacity} 最大`),
         React.createElement("p", { className: "meta" }, `Platform: ${platformLabel(world)}`)
     );
@@ -1335,7 +1331,7 @@ function renderWorld(world) {
 function renderPlaceInfo(placeInfo) {
     return React.createElement(React.Fragment, null,
         React.createElement("strong", null, placeInfo.name),
-        React.createElement("p", { className: "meta" }, `追加ユーザー: ${placeInfo.registeredByUserId}`),
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${placeInfo.registeredByDisplayName}`),
         React.createElement("p", { className: "meta" }, placeInfo.address),
         renderMarkdown(placeInfo.businessInformation)
     );
@@ -1347,7 +1343,7 @@ function renderWebLink(webLink) {
             url: webLink.url,
             fallbackTitle: webLink.siteName
         }),
-        React.createElement("p", { className: "meta" }, `追加ユーザー: ${webLink.registeredByUserId}`)
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${webLink.registeredByDisplayName}`)
     );
 }
 
@@ -1392,7 +1388,7 @@ function OgpPreviewCard({ url, fallbackTitle, fallbackDescription = "" }) {
 function renderComment(comment) {
     return React.createElement(React.Fragment, null,
         renderMarkdown(comment.comments),
-        React.createElement("p", { className: "meta" }, `追加ユーザー: ${comment.registeredByUserId}`)
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${comment.registeredByDisplayName}`)
     );
 }
 

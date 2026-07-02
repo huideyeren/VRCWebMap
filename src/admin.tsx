@@ -172,7 +172,7 @@ function AdminApp() {
                                 React.createElement("th", null, "地域"),
                                 React.createElement("th", null, "緯度"),
                                 React.createElement("th", null, "経度"),
-                                React.createElement("th", null, "登録者ID"),
+                                React.createElement("th", null, "登録者"),
                                 React.createElement("th", null, "操作")
                             )
                         ),
@@ -182,7 +182,7 @@ function AdminApp() {
                                 React.createElement("td", null, formatAreaName(spot.areaCode, areas)),
                                 React.createElement("td", { className: "numeric" }, Number(spot.latitude).toFixed(6)),
                                 React.createElement("td", { className: "numeric" }, Number(spot.longitude).toFixed(6)),
-                                React.createElement("td", { className: "utility-text" }, spot.registeredByUserId),
+                                React.createElement("td", { className: "utility-text" }, spot.registeredByDisplayName),
                                 React.createElement("td", null,
                                     React.createElement("button", { type: "button", className: "secondary compact", onClick: () => selectSpot(spot) }, "編集")
                                 )
