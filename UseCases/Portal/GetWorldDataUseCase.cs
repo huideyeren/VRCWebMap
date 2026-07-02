@@ -30,11 +30,13 @@ public sealed class GetWorldDataUseCase(ISpotRepository spots)
         var spotById = spots.List().ToDictionary(spot => spot.Id);
         var areaByCode = AreaDefinitions.All.ToDictionary(area => area.AreaCode);
         var worlds = spots.ListWorlds()
-            .Where(world => spotById.ContainsKey(world.SpotId))
+            .Where(world =>
+                world.SpotId.HasValue &&
+                spotById.ContainsKey(world.SpotId.Value))
             .ToArray();
 
         var categorys = worlds
-            .GroupBy(world => areaByCode[spotById[world.SpotId].AreaCode].Category)
+            .GroupBy(world => areaByCode[spotById[world.SpotId!.Value].AreaCode].Category)
             .OrderBy(group => AreaCategoryDisplayNames.OrderOf(group.Key))
             .Select(group => new GetWorldData.Category(
                 AreaCategoryDisplayNames.Get(group.Key),

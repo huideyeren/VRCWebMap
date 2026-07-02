@@ -37,7 +37,8 @@ public sealed class ListSpotsUseCase(
             ? allSpots
             : allSpots.Where(spot => MatchesAllTerms(spot, terms)).ToArray();
         var worldSpotIds = spots.ListWorlds()
-            .Select(world => world.SpotId)
+            .Where(world => world.SpotId.HasValue)
+            .Select(world => world.SpotId!.Value)
             .ToHashSet();
         var placeInfoSpotIds = spots.ListPlaceInfos()
             .Select(placeInfo => placeInfo.SpotId)

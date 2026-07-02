@@ -28,4 +28,20 @@ public sealed class PostgreSqlSchemaInitializerTests
         Assert.Contains("\"IX_DiscordUsers_NormalizedVRChatDisplayName\"", sql, StringComparison.Ordinal);
         Assert.Contains("WHERE \"NormalizedVRChatDisplayName\" IS NOT NULL", sql, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void EnsurePortalCategorySchemaSql_AddsCategoryAndExactlyOneWorldParent()
+    {
+        var sql = PostgreSqlSchemaInitializer.EnsurePortalCategorySchemaSql;
+
+        Assert.Contains("CREATE TABLE IF NOT EXISTS \"PortalCategories\"", sql, StringComparison.Ordinal);
+        Assert.Contains("ALTER COLUMN \"SpotId\" DROP NOT NULL", sql, StringComparison.Ordinal);
+        Assert.Contains("\"PortalCategoryId\" uuid", sql, StringComparison.Ordinal);
+        Assert.Contains("CHECK", sql, StringComparison.Ordinal);
+        Assert.Contains("\"SpotId\" IS NOT NULL", sql, StringComparison.Ordinal);
+        Assert.Contains("\"PortalCategoryId\" IS NOT NULL", sql, StringComparison.Ordinal);
+        Assert.Contains("ON DELETE RESTRICT", sql, StringComparison.Ordinal);
+        Assert.Contains("\"IX_PortalCategories_NormalizedName\"", sql, StringComparison.Ordinal);
+        Assert.Contains("CK_PortalCategories_OwnerMatchesVisibility", sql, StringComparison.Ordinal);
+    }
 }
