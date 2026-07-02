@@ -254,15 +254,38 @@ as part of `WebLink` or `VRChatWorld`. The preview fetch accepts only public
 Portal export endpoints are also exposed through Kawa use cases:
 
 - `POST /portal/world-data`
+- `POST /portal/world-data/merge`
+- `POST /portal-categories/list|create|update|delete`
+- `POST /portal-worlds/create|update|delete|move`
 
 `/portal/world-data` returns VRChat worlds grouped by Japanese regional
 category names using the official `WorldData.json` shape. The request body is
 an empty JSON object. The response always sets `ShowPrivateWorld` to `true`,
 keeps both public and private VRChat releases selectable, and writes the raw
 `wrld_...` value to each world `ID`. `ReleaseStatus` describes the VRChat
-release status; it is not a WPPLS access-control setting. `Roles` and
-`PermittedRoles` are intentionally omitted until off-map world registration is
-implemented.
+release status; it is not a WPPLS access-control setting.
+
+Off-map worlds belong to a `PortalCategory`. Administrators may create Public
+categories, while general users create Personal categories owned by themselves.
+Administrators may also create a Personal category for another registered user.
+Visibility and owner are immutable after creation. Public categories can be
+changed only by administrators; Personal categories can be changed by their
+owner or an administrator.
+
+Anonymous WorldData contains regional and Public categories. A logged-in user
+also receives only their own Personal categories, including administrators.
+Personal access uses the owner's current VRChat Display Name for both
+`RoleName` and `DisplayNames`, and references that name from `PermittedRoles`.
+
+`/portal/world-data/merge` accepts an existing JSON string without requiring
+login and appends categories visible to the current user. The input is limited
+to 5 MiB and is processed transiently without persistence or caching. Unknown
+properties are preserved. Duplicate category names, including case/whitespace
+variants, and conflicting definitions for an existing role are rejected.
+
+Before deploying the `PortalCategories` and nullable world-parent schema to an
+existing PostgreSQL volume, take and verify a database backup using the
+documented backup workflow.
 
 This portal export is intended for Genkai Kogyo's `PortalLibrarySystem (WPPLS)`,
 a VRChat portal system distributed on BOOTH:
@@ -563,13 +586,32 @@ private network address は拒否します。
 ポータル出力 endpoint も Kawa UseCase として公開されます。
 
 - `POST /portal/world-data`
+- `POST /portal/world-data/merge`
+- `POST /portal-categories/list|create|update|delete`
+- `POST /portal-worlds/create|update|delete|move`
 
 `/portal/world-data` は、VRChat ワールドを日本語の地域カテゴリ名ごとにまとめ、
 正式な `WorldData.json` 形式で返します。request body は空の JSON object です。
 response の `ShowPrivateWorld` は常に `true` で、VRChat 上の public/private release
 をどちらも選択可能にし、各 world の `ID` には `wrld_...` 形式の値を出力します。
 `ReleaseStatus` は VRChat 上の公開状態であり、WPPLS の閲覧権限ではありません。
-地図外ワールド登録を実装するまでは `Roles` と `PermittedRoles` を出力しません。
+
+地図外ワールドは `PortalCategory` に所属します。管理者は全体公開の Public カテゴリを、
+一般ユーザーは本人所有の Personal カテゴリを複数作成できます。管理者は登録済みの
+別ユーザーを所有者にした Personal カテゴリも作成できます。公開範囲と所有者は作成後に
+変更できません。Public は管理者だけ、Personal は所有者または管理者が変更できます。
+
+未ログイン時の WorldData は地域カテゴリと Public だけを出力します。ログイン中は、
+管理者を含め本人所有の Personal だけを追加します。Personal の `RoleName` と
+`DisplayNames` には所有者の最新の VRChat Display Name を使い、`PermittedRoles`
+から同じ名前を参照します。
+
+`/portal/world-data/merge` は未ログインでも利用でき、既存 JSON へ現在閲覧可能なカテゴリを
+追加します。入力上限は 5 MiB で、内容は保存・cacheせず一時的に処理します。未知のプロパティは
+保持し、大文字小文字や前後空白だけが異なる重複カテゴリ、同名で内容が競合する Role は拒否します。
+
+既存 PostgreSQL volume へ `PortalCategories` とワールド所属先のschema変更を適用する前に、
+文書化された手順でDBバックアップを作成・検証してください。
 
 このポータル出力は、幻会興業さんの `PortalLibrarySystem（WPPLS）` 向けです。
 BOOTH の配布ページ:

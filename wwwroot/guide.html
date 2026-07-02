@@ -65,7 +65,14 @@
 
         <section>
             <h2>8. PortalLibrarySystem 用 JSON を出力する</h2>
-            <p>上部メニューの「WorldData.json ダウンロード」から、PortalLibrarySystem 向けの JSON を生成できます。出力内容は登録済み VRChat World と地域カテゴリに基づきます。</p>
+            <p>上部メニューの「Portal JSON」から専用画面を開き、PortalLibrarySystem 向けの <code>WorldData.json</code> を生成できます。未ログイン時は地域カテゴリと全体公開カテゴリ、ログイン中はさらに自分の Personal カテゴリを出力します。</p>
+            <p>既存の <code>WorldData.json</code> を選ぶと、未知の拡張値を保ったまま本システムのカテゴリを末尾へ追加できます。ファイルは 5 MiB 以下にしてください。内容は処理後に保存されません。カテゴリ名の重複や、同名 Role の定義が競合する場合はマージを中止します。</p>
+        </section>
+
+        <section>
+            <h2>9. 地図外ワールドを管理する</h2>
+            <p>ログイン済みの一般ユーザーは、VRChat表示名を登録すると本人用の Personal カテゴリを複数作成できます。Personal の Role には本人の最新のVRChat表示名を使います。管理者は全体公開の Public カテゴリや、別ユーザーを所有者にした Personal カテゴリも作成できます。</p>
+            <p>カテゴリの公開範囲と所有者は作成後に変更できません。Personal は所有者または管理者、Public は管理者だけが名前変更、削除、配下ワールドの登録・編集・移動・削除を行えます。</p>
         </section>
 
         <section>
