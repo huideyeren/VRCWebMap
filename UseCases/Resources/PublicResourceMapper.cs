@@ -41,6 +41,12 @@ public sealed class PublicResourceMapper(
     /// VRChatワールドを公開DTOへ変換します。
     /// </summary>
     public VRChatWorldData ToVRChatWorld(VRChatWorld world) =>
+        ToVRChatWorld(world, CanEdit(world.RegisteredByUserId));
+
+    /// <summary>
+    /// 親カテゴリの権限を継承するVRChatワールドを公開DTOへ変換します。
+    /// </summary>
+    public VRChatWorldData ToVRChatWorld(VRChatWorld world, bool canEdit) =>
         new(
             world.Id,
             world.VRChatWorldId,
@@ -53,7 +59,7 @@ public sealed class PublicResourceMapper(
             world.IOS,
             world.IsPrivate,
             ResolveDisplayName(world.RegisteredByUserId),
-            CanEdit(world.RegisteredByUserId));
+            canEdit);
 
     /// <summary>
     /// 場所情報を公開DTOへ変換します。
