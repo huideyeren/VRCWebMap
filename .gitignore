@@ -5,3 +5,4 @@ node_modules/
 wwwroot/assets/
 riderModule.iml
 /_ReSharper.Caches/
+.env.backup

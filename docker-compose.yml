@@ -37,6 +37,35 @@ services:
     volumes:
       - redis-data:/data
 
+  db-backup:
+    build:
+      context: .
+      dockerfile: ops/db-backup/Dockerfile
+    profiles:
+      - backup
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${BACKUP_PGDATABASE:-vrcwebmap}
+      PGUSER: ${BACKUP_PGUSER:-vrcwebmap}
+      PGPASSWORD: ${BACKUP_PGPASSWORD:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PREFIX: ${S3_PREFIX:-backups}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_ADDRESSING_STYLE: ${S3_ADDRESSING_STYLE:-auto}
+      ALLOW_INSECURE_S3_ENDPOINT: ${ALLOW_INSECURE_S3_ENDPOINT:-false}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      BACKUP_RETENTION_COUNT: ${BACKUP_RETENTION_COUNT:-4}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backup-work:/backup-work
+
 volumes:
   postgres-data:
   redis-data:
+  backup-work:
