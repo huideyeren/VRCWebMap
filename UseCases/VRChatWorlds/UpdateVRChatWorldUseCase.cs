@@ -29,7 +29,9 @@ public sealed class UpdateVRChatWorldUseCase(
             return Task.FromResult(KawaResult<UpdateVRChatWorld.Response>.Failure(actorError));
         }
 
-        if (!spots.TryGetWorld(request.Id, out var existing))
+        if (!spots.TryGetWorld(request.Id, out var existing) ||
+            existing.SpotId is null ||
+            existing.PortalCategoryId is not null)
         {
             return Task.FromResult(KawaResult<UpdateVRChatWorld.Response>.Failure(new KawaError(KawaErrorKind.NotFound, "VRChat ワールド情報が見つかりません。")));
         }
@@ -39,19 +41,18 @@ public sealed class UpdateVRChatWorldUseCase(
             return Task.FromResult(KawaResult<UpdateVRChatWorld.Response>.Failure(new KawaError(KawaErrorKind.Forbidden, "VRChat ワールド情報を変更する権限がありません。")));
         }
 
-        var world = new VRChatWorld(
-            existing.Id,
-            existing.SpotId,
-            existing.RegisteredByUserId,
-            request.VRChatWorldId.Trim(),
-            request.Name.Trim(),
-            request.RecommendedCapacity,
-            request.Capacity,
-            request.Description.Trim(),
-            request.PC,
-            request.Android,
-            request.IOS,
-            request.IsPrivate);
+        var world = existing with
+        {
+            VRChatWorldId = request.VRChatWorldId.Trim(),
+            Name = request.Name.Trim(),
+            RecommendedCapacity = request.RecommendedCapacity,
+            Capacity = request.Capacity,
+            Description = request.Description.Trim(),
+            PC = request.PC,
+            Android = request.Android,
+            IOS = request.IOS,
+            IsPrivate = request.IsPrivate
+        };
 
         spots.UpsertWorld(world);
         var mapper = new PublicResourceMapper(users.List(), actor);

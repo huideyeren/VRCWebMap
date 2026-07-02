@@ -26,7 +26,9 @@ public sealed class DeleteVRChatWorldUseCase(
             return Task.FromResult(KawaResult<DeleteVRChatWorld.Response>.Failure(actorError));
         }
 
-        if (!spots.TryGetWorld(request.Id, out var existing))
+        if (!spots.TryGetWorld(request.Id, out var existing) ||
+            existing.SpotId is null ||
+            existing.PortalCategoryId is not null)
         {
             return Task.FromResult(KawaResult<DeleteVRChatWorld.Response>.Failure(new KawaError(KawaErrorKind.NotFound, "VRChat ワールド情報が見つかりません。")));
         }
