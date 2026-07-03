@@ -603,6 +603,11 @@ button.spot-region-heading[aria-expanded="true"] {
     padding: 10px 0 2px 18px;
 }
 
+/* grid指定がhidden属性の標準スタイルを上書きするため、閉じた地域は明示的に非表示にします。 */
+.spot-region-panel[hidden] {
+    display: none;
+}
+
 .spot-region-panel > button {
     width: 100%;
     overflow-wrap: anywhere;

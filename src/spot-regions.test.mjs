@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
     getSpotCategoryKey,
@@ -46,4 +47,14 @@ test("getSpotCategoryKey resolves the selected spot category", () => {
     assert.equal(
         getSpotCategoryKey({ id: "unknown", areaCode: 999 }, areas),
         "undefined");
+});
+
+test("hidden spot region panels are removed from layout", () => {
+    const styles = readFileSync(
+        new URL("../wwwroot/styles.css", import.meta.url),
+        "utf8");
+
+    assert.match(
+        styles,
+        /\.spot-region-panel\[hidden\]\s*\{[^}]*display:\s*none\s*;/s);
 });
