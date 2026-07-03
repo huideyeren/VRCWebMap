@@ -1,10 +1,10 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import markerIcon2xUrl from "leaflet/dist/images/marker-icon-2x.png?url";
-import markerIconUrl from "leaflet/dist/images/marker-icon.png?url";
-import markerShadowUrl from "leaflet/dist/images/marker-shadow.png?url";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { toggleFormPanel, type FormPanel } from "./collapsible-panels";
+import { createSpotIcon, getCurrentPosition } from "./map-ui";
+import { getSpotCategoryKey, groupSpotsByArea } from "./spot-regions";
 
 type SelectSpotOptions = {
     updateUrl?: boolean;
@@ -14,12 +14,6 @@ type SelectSpotOptions = {
 
 const TokyoStation = [35.681236, 139.767125];
 const DefaultAreaCode = 13;
-
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: markerIcon2xUrl,
-    iconUrl: markerIconUrl,
-    shadowUrl: markerShadowUrl
-});
 
 function App() {
     const mapElementRef = useRef(null);
@@ -38,11 +32,12 @@ function App() {
     const [developmentUsers, setDevelopmentUsers] = useState([]);
     const [message, setMessage] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
+    const [submittedSearchQuery, setSubmittedSearchQuery] = useState("");
     const [isSaving, setIsSaving] = useState(false);
-    const [isDownloadingPortal, setIsDownloadingPortal] = useState(false);
+    const [isMapBrandVisible, setIsMapBrandVisible] = useState(true);
+    const [isLocating, setIsLocating] = useState(false);
     const spotCount = spots.length;
-    const actorUserId = getCurrentUserId(currentUser);
-    const registrantName = currentUser?.displayName ?? currentUser?.username;
+    const registrantName = getUserDisplayName(currentUser);
 
     useEffect(() => {
         loadCurrentUser().then(setCurrentUser).catch(() => setCurrentUser(null));
@@ -54,9 +49,6 @@ function App() {
 
     useEffect(() => {
         currentUserRef.current = currentUser;
-        if (!currentUser?.isAdmin && screen === "admin") {
-            setScreen("map");
-        }
     }, [currentUser, screen]);
 
     useEffect(() => {
@@ -75,8 +67,10 @@ function App() {
         }).addTo(map);
 
         map.on("contextmenu", (event) => {
-            if (!currentUserRef.current) {
-                setMessage("Spot の登録にはログインが必要です。");
+            if (!currentUserRef.current?.hasVRChatDisplayName) {
+                setMessage(currentUserRef.current
+                    ? "Spot の登録にはVRChat表示名の登録が必要です。"
+                    : "Spot の登録にはログインが必要です。");
                 return;
             }
 
@@ -116,7 +110,10 @@ function App() {
         markersRef.current.clear();
 
         for (const spot of spots) {
-            const marker = L.marker([spot.latitude, spot.longitude])
+            const marker = L.marker([spot.latitude, spot.longitude], {
+                icon: createSpotIcon(spot),
+                alt: `${spot.name}の地図ピン`
+            })
                 .addTo(map)
                 .bindPopup(`<strong>${escapeHtml(spot.name)}</strong><br>${escapeHtml(spot.description)}`);
             marker.on("click", () => selectSpot(spot));
@@ -125,8 +122,8 @@ function App() {
     }, [spots]);
 
     const panelTitle = useMemo(() => {
-        if (screen === "admin") {
-            return "管理用画面";
+        if (screen === "profile") {
+            return "プロフィール設定";
         }
 
         if (draft) {
@@ -158,7 +155,7 @@ function App() {
             }
         }
 
-        centerMapOnCurrentPosition();
+        centerMapOnCurrentPosition(false);
     }
 
     async function refreshSpots() {
@@ -198,23 +195,27 @@ function App() {
         centerMap([spot.latitude, spot.longitude], 15);
     }
 
-    function centerMapOnCurrentPosition() {
-        if (!navigator.geolocation) {
+    async function centerMapOnCurrentPosition(showError = true) {
+        if (isLocating) {
             return;
         }
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                centerMap([position.coords.latitude, position.coords.longitude], 13);
-            },
-            () => {
-                // 位置情報は任意。拒否や取得失敗時はデフォルト中心のままにする。
-            },
-            {
-                enableHighAccuracy: false,
-                maximumAge: 300000,
-                timeout: 5000
-            });
+        setIsLocating(true);
+        if (showError) {
+            setMessage("");
+        }
+
+        try {
+            const position = await getCurrentPosition();
+            centerMap([position.coords.latitude, position.coords.longitude], 13);
+        } catch (error) {
+            // 初期表示の位置情報は任意。明示ボタンで要求された場合だけ理由を通知します。
+            if (showError) {
+                setMessage(error.message);
+            }
+        } finally {
+            setIsLocating(false);
+        }
     }
 
     function centerMap(center, zoom) {
@@ -269,8 +270,10 @@ function App() {
             return;
         }
 
-        if (!currentUser) {
-            setMessage("Spot の登録にはログインが必要です。");
+        if (!currentUser?.hasVRChatDisplayName) {
+            setMessage(currentUser
+                ? "Spot の登録にはVRChat表示名の登録が必要です。"
+                : "Spot の登録にはログインが必要です。");
             return;
         }
 
@@ -279,7 +282,6 @@ function App() {
 
         try {
             const created = await createSpot({
-                registeredByUserId: actorUserId,
                 name: draft.name,
                 latitude: Number(draft.latitude),
                 longitude: Number(draft.longitude),
@@ -309,6 +311,7 @@ function App() {
         try {
             const loaded = await loadSpots(searchQuery);
             setSpots(loaded);
+            setSubmittedSearchQuery(searchQuery.trim());
             if (searchQuery.trim() && loaded.length === 0) {
                 setMessage("検索条件に一致する Spot は見つかりませんでした。");
             }
@@ -327,6 +330,7 @@ function App() {
 
         try {
             setSpots(await loadSpots());
+            setSubmittedSearchQuery("");
         } catch (error) {
             setMessage(error.message);
         }
@@ -346,38 +350,14 @@ function App() {
         }
     }
 
-    function openAdminScreen() {
-        if (!currentUser?.isAdmin) {
+    function openProfileScreen() {
+        if (!currentUser) {
             return;
         }
 
         setDraft(null);
-        setScreen("admin");
+        setScreen("profile");
         setMessage("");
-    }
-
-    async function downloadPortalData() {
-        setIsDownloadingPortal(true);
-        setMessage("");
-
-        try {
-            const body = await postJson("/portal/world-data", { showPrivateWorld: true });
-            const portalData = unwrap(body);
-            const blob = new Blob([JSON.stringify(portalData, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const anchor = document.createElement("a");
-            anchor.href = url;
-            anchor.download = "WorldData.json";
-            document.body.append(anchor);
-            anchor.click();
-            anchor.remove();
-            URL.revokeObjectURL(url);
-            setMessage("PortalLibrarySystem 用 WorldData.json をダウンロードしました。");
-        } catch (error) {
-            setMessage(error.message);
-        } finally {
-            setIsDownloadingPortal(false);
-        }
     }
 
     return React.createElement("div", { className: "app-shell" },
@@ -395,7 +375,7 @@ function App() {
                 compact: true
             }),
             React.createElement("div", { className: "top-menu-controls" },
-                currentUser ? React.createElement("span", { className: "user-chip" }, currentUser.displayName ?? currentUser.username) : null,
+                currentUser ? React.createElement("span", { className: "user-chip" }, getUserDisplayName(currentUser)) : null,
                 React.createElement("details", { className: "hamburger-menu" },
                     React.createElement("summary", { "aria-label": "メニューを開く" },
                         React.createElement("span", { className: "hamburger-icon", "aria-hidden": "true" },
@@ -412,10 +392,14 @@ function App() {
                         React.createElement("hr", null),
                         currentUser
                             ? React.createElement(React.Fragment, null,
-                                currentUser.isAdmin ? React.createElement("button", {
+                                React.createElement("button", {
                                     type: "button",
-                                    className: screen === "admin" ? "" : "secondary",
-                                    onClick: openAdminScreen
+                                    className: screen === "profile" ? "" : "secondary",
+                                    onClick: openProfileScreen
+                                }, "プロフィール設定"),
+                                currentUser.isAdmin ? React.createElement("a", {
+                                    className: "menu-button secondary",
+                                    href: "/admin.html"
                                 }, "管理用画面") : null,
                                 React.createElement("button", {
                                     type: "button",
@@ -443,21 +427,36 @@ function App() {
                             }, "Swagger")
                         ) : null,
                         React.createElement("hr", null),
-                        React.createElement("button", {
-                            type: "button",
-                            className: "secondary",
-                            onClick: downloadPortalData,
-                            disabled: isDownloadingPortal
-                        }, isDownloadingPortal ? "生成中..." : "WorldData.json ダウンロード")
+                        React.createElement("a", {
+                            className: "menu-button",
+                            href: "/portal.html"
+                        }, "Portal JSON")
                     )
                 )
             )
         ),
         React.createElement("section", { className: "map-frame" },
-            React.createElement("div", { className: "map-brand" },
+            isMapBrandVisible ? React.createElement("div", { className: "map-brand" },
+                React.createElement("button", {
+                    type: "button",
+                    className: "map-brand-close",
+                    "aria-label": "Spot Atlasの案内を閉じる",
+                    onClick: () => setIsMapBrandVisible(false)
+                }, "×"),
                 React.createElement("p", { className: "eyebrow" }, "VRC Web Map"),
                 React.createElement("h1", null, "Spot Atlas"),
                 React.createElement("p", { className: "hint" }, "地図を右クリックして Spot を登録。marker をクリックすると右ペインに詳細を表示します。")
+            ) : null,
+            React.createElement("button", {
+                type: "button",
+                className: "map-location-button",
+                disabled: isLocating,
+                onClick: () => centerMapOnCurrentPosition(true)
+            }, isLocating ? "現在地を取得中…" : "現在地に戻る"),
+            React.createElement("div", { className: "map-legend", "aria-label": "地図ピンの色" },
+                React.createElement("span", null, React.createElement("i", { className: "legend-dot default" }), "通常Spot"),
+                React.createElement("span", null, React.createElement("i", { className: "legend-dot place" }), "施設情報あり"),
+                React.createElement("span", null, React.createElement("i", { className: "legend-dot world" }), "VRChatワールドあり")
             ),
             React.createElement("div", { id: "map", ref: mapElementRef, "aria-label": "Spot map" })
         ),
@@ -465,24 +464,22 @@ function App() {
             React.createElement("header", { className: "panel-header" },
                 React.createElement("p", { className: "eyebrow" }, `${spotCount} spots`),
                 React.createElement("h2", null, panelTitle),
-                React.createElement("p", { className: "meta" }, currentUser ? `ログイン中: ${currentUser.displayName ?? currentUser.username}` : "未ログイン: 書き込みにはログインが必要です。")
+                React.createElement("p", { className: "meta" }, currentUser ? `ログイン中: ${getUserDisplayName(currentUser)}` : "未ログイン: 書き込みにはログインが必要です。")
             ),
             React.createElement("div", { className: "panel-body" },
                 message ? React.createElement("p", { className: "notice", role: "status" }, message) : null,
-                screen === "admin" ? React.createElement(AdminScreen, {
-                    spots,
-                    selectedSpot,
-                    selectedDetails,
-                    areas,
+                screen === "profile" ? React.createElement(ProfileSettings, {
                     currentUser,
-                    onSelectSpot: (spot) => selectSpot(spot, { screen: "admin" }),
-                    onChanged: reloadAfterSpotMutation,
-                    onDeleted: clearDeletedSpot,
-                    onBack: () => setScreen("map"),
-                    onReload: refreshSpots,
+                    onUpdated: async () => {
+                        const user = await loadCurrentUser();
+                        setCurrentUser(user);
+                        setScreen("map");
+                        setMessage("VRChat表示名を保存しました。");
+                    },
+                    onCancel: () => setScreen("map"),
                     onMessage: setMessage
                 }) : null,
-                screen !== "admin" && draft ? React.createElement(SpotForm, {
+                screen !== "profile" && draft ? React.createElement(SpotForm, {
                     draft,
                     areas,
                     isSaving,
@@ -493,20 +490,32 @@ function App() {
                         setMessage("");
                     }
                 }) : null,
-                screen !== "admin" && !draft && selectedSpot ? React.createElement(SpotDetails, {
+                screen !== "profile" && !draft && selectedSpot ? React.createElement(SpotDetails, {
                     spot: selectedSpot,
                     details: selectedDetails,
                     areas,
                     currentUser,
-                    registeredByUserId: actorUserId,
                     registrantName,
-                    onCreated: reloadSelectedSpot,
+                    onCreated: async (spotId) => {
+                        await reloadSelectedSpot(spotId);
+                        await refreshSpots();
+                    },
                     onSpotUpdated: reloadAfterSpotMutation,
                     onSpotDeleted: clearDeletedSpot,
                     onMessage: setMessage
                 }) : null,
-                screen !== "admin" && !draft && !selectedSpot ? React.createElement(EmptyState, { onReload: refreshSpots }) : null,
-                screen !== "admin" ? React.createElement(SpotList, { spots, selectedSpotId: selectedSpot?.id, onSelect: selectSpot }) : null
+                screen !== "profile" && !draft && !selectedSpot ? React.createElement(EmptyState, {
+                    onReload: refreshSpots,
+                    currentUser,
+                    onOpenProfile: openProfileScreen
+                }) : null,
+                screen !== "profile" ? React.createElement(SpotList, {
+                    spots,
+                    areas,
+                    selectedSpotId: selectedSpot?.id,
+                    resetKey: submittedSearchQuery,
+                    onSelect: selectSpot
+                }) : null
             )
         )
     );
@@ -559,7 +568,6 @@ function AdminScreen({ spots, selectedSpot, selectedDetails, areas, currentUser,
                     comments,
                     areas,
                     currentUser,
-                    actorUserId: getCurrentUserId(currentUser),
                     onChanged,
                     onDeleted,
                     onMessage
@@ -569,7 +577,7 @@ function AdminScreen({ spots, selectedSpot, selectedDetails, areas, currentUser,
     );
 }
 
-function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
+export function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
     const [file, setFile] = useState(null);
     const [defaultAreaCode, setDefaultAreaCode] = useState(DefaultAreaCode);
     const [preview, setPreview] = useState(null);
@@ -584,8 +592,6 @@ function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
         }
 
         return {
-            actorUserId: getCurrentUserId(currentUser),
-            actorIsAdmin: true,
             fileName: file.name,
             contentBase64: await readFileAsBase64(file),
             defaultAreaCode: Number(defaultAreaCode)
@@ -749,31 +755,67 @@ function SpotForm({ draft, areas, isSaving, onChange, onSubmit, onCancel, submit
     );
 }
 
-function SpotDetails({ spot, details, areas, currentUser, registeredByUserId, registrantName, onCreated, onSpotUpdated, onSpotDeleted, onMessage }) {
+function SpotDetails({ spot, details, areas, currentUser, registrantName, onCreated, onSpotUpdated, onSpotDeleted, onMessage }) {
     const worlds = details?.vrChatWorlds ?? [];
     const placeInfos = details?.placeInfos ?? [];
     const webLinks = details?.webLinks ?? [];
     const comments = details?.comments ?? [];
+    const [activeFormPanel, setActiveFormPanel] = useState<FormPanel | null>(null);
+    const canShowEdit = currentUser?.hasVRChatDisplayName &&
+        canEditSelectedDetails(currentUser, spot, worlds, placeInfos, webLinks, comments);
+
+    useEffect(() => {
+        setActiveFormPanel(null);
+    }, [spot.id]);
+
+    function togglePanel(panel: FormPanel) {
+        setActiveFormPanel((current) => toggleFormPanel(current, panel));
+    }
 
     return React.createElement("section", { className: "card" },
         React.createElement("h3", null, spot.name),
         renderMarkdown(spot.description),
         React.createElement("p", { className: "meta" }, `座標: ${formatCoordinate(spot.latitude)}, ${formatCoordinate(spot.longitude)}`),
         React.createElement("p", { className: "meta" }, `地域: ${formatAreaName(spot.areaCode, areas)}`),
-        currentUser ? React.createElement(AddContentForms, { spot, registeredByUserId, registrantName, onCreated, onMessage }) : React.createElement(LoginRequiredNotice),
-        canEditSelectedDetails(currentUser, spot, worlds, placeInfos, webLinks, comments) ? React.createElement(AdminPanel, {
-            spot,
-            worlds,
-            placeInfos,
-            webLinks,
-            comments,
-            areas,
-            currentUser,
-            actorUserId: getCurrentUserId(currentUser),
-            onChanged: onSpotUpdated,
-            onDeleted: onSpotDeleted,
-            onMessage
-        }) : null,
+        currentUser?.hasVRChatDisplayName
+            ? React.createElement("div", {
+                key: spot.id,
+                className: "spot-form-accordions"
+            },
+                React.createElement(CollapsiblePanel, {
+                    title: "情報を追加",
+                    open: activeFormPanel === "add",
+                    onToggle: () => togglePanel("add"),
+                    contentId: `spot-add-${spot.id}`
+                }, React.createElement(AddContentForms, {
+                    spot,
+                    registrantName,
+                    onCreated,
+                    onSaved: () => setActiveFormPanel(null),
+                    onMessage
+                })),
+                canShowEdit ? React.createElement(CollapsiblePanel, {
+                    title: currentUser.isAdmin ? "管理者編集" : "登録者編集",
+                    open: activeFormPanel === "edit",
+                    onToggle: () => togglePanel("edit"),
+                    contentId: `spot-edit-${spot.id}`
+                }, React.createElement(AdminPanel, {
+                    spot,
+                    worlds,
+                    placeInfos,
+                    webLinks,
+                    comments,
+                    areas,
+                    currentUser,
+                    onChanged: onSpotUpdated,
+                    onDeleted: onSpotDeleted,
+                    onSaved: () => setActiveFormPanel(null),
+                    onMessage
+                })) : null
+            )
+            : currentUser
+                ? React.createElement(ProfileRequiredNotice)
+                : React.createElement(LoginRequiredNotice),
         React.createElement(RelatedSection, { title: "VRChat Worlds", items: worlds, render: renderWorld }),
         React.createElement(RelatedSection, { title: "Place Infos", items: placeInfos, render: renderPlaceInfo }),
         React.createElement(RelatedSection, { title: "Web Links", items: webLinks, render: renderWebLink }),
@@ -781,10 +823,93 @@ function SpotDetails({ spot, details, areas, currentUser, registeredByUserId, re
     );
 }
 
+function CollapsiblePanel({
+    title,
+    open,
+    onToggle,
+    contentId,
+    children
+}: {
+    title: string;
+    open: boolean;
+    onToggle: () => void;
+    contentId: string;
+    children?: React.ReactNode;
+}) {
+    return React.createElement("section", { className: "collapsible-form-panel" },
+        React.createElement("button", {
+            type: "button",
+            className: "collapsible-form-heading",
+            "aria-expanded": open,
+            "aria-controls": contentId,
+            onClick: onToggle
+        },
+            React.createElement("span", null, title),
+            React.createElement("span", { className: "collapsible-form-chevron", "aria-hidden": "true" }, open ? "⌄" : "›")
+        ),
+        React.createElement("div", {
+            id: contentId,
+            className: "collapsible-form-content",
+            hidden: !open
+        }, children)
+    );
+}
+
 function LoginRequiredNotice() {
     return React.createElement("div", { className: "content-form" },
         React.createElement("p", { className: "meta" }, "関連情報の追加にはログインが必要です。"),
         React.createElement("a", { className: "menu-button", href: "/auth/discord/login" }, "Discord ログイン")
+    );
+}
+
+function ProfileRequiredNotice() {
+    return React.createElement("div", { className: "content-form" },
+        React.createElement("strong", null, "VRChat表示名を登録してください"),
+        React.createElement("p", { className: "meta" }, "投稿・編集を行う前に、メニューの「プロフィール設定」からVRChatのDisplay Nameを登録してください。")
+    );
+}
+
+function ProfileSettings({ currentUser, onUpdated, onCancel, onMessage }) {
+    const [displayName, setDisplayName] = useState(currentUser?.vrChatDisplayName ?? "");
+    const [isSaving, setIsSaving] = useState(false);
+
+    async function submit(event) {
+        event.preventDefault();
+        setIsSaving(true);
+        onMessage("");
+
+        try {
+            await postJson("/users/profile", { vrChatDisplayName: displayName });
+            await onUpdated();
+        } catch (error) {
+            onMessage(error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
+    return React.createElement("section", { className: "card profile-settings" },
+        React.createElement("p", { className: "eyebrow" }, "Public identity"),
+        React.createElement("h3", null, "VRChat表示名"),
+        React.createElement("p", { className: "meta" }, `Discord: ${currentUser?.username ?? ""}`),
+        React.createElement("p", { className: "meta" }, "VRChat内で頭上に表示されるDisplay Nameを入力してください。4〜15文字で、他の利用者と同じ名前は登録できません。"),
+        React.createElement("form", { className: "form-grid", onSubmit: submit },
+            React.createElement("label", null,
+                "VRChat Display Name",
+                React.createElement("input", {
+                    value: displayName,
+                    minLength: 4,
+                    maxLength: 15,
+                    required: true,
+                    autoComplete: "off",
+                    onChange: (event) => setDisplayName(event.target.value)
+                })
+            ),
+            React.createElement("div", { className: "actions" },
+                React.createElement("button", { type: "submit", disabled: isSaving }, isSaving ? "保存中..." : "表示名を保存"),
+                React.createElement("button", { type: "button", className: "secondary", onClick: onCancel }, "戻る")
+            )
+        )
     );
 }
 
@@ -797,30 +922,30 @@ function RelatedSection({ title, items, render }) {
     );
 }
 
-function getCurrentUserId(user) {
-    return user?.discordUserId ?? user?.userId ?? "";
+function getUserDisplayName(user) {
+    return user?.vrChatDisplayName ?? user?.displayName ?? user?.username ?? "";
 }
 
-function canEditItem(item, user) {
-    const userId = getCurrentUserId(user);
-    return Boolean(user?.isAdmin || (userId && item?.registeredByUserId === userId));
+function canEditItem(item) {
+    // 所有者IDをブラウザへ公開せず、サーバーが最新の認証状態から判定した結果だけを利用します。
+    return item?.canEdit === true;
 }
 
-function editableItems(items, user) {
-    return user?.isAdmin ? items : items.filter((item) => canEditItem(item, user));
+function editableItems(items) {
+    return items.filter(canEditItem);
 }
 
 function canEditSelectedDetails(user, spot, worlds, placeInfos, webLinks, comments) {
     return Boolean(user && (
-        canEditItem(spot, user) ||
-        worlds.some((item) => canEditItem(item, user)) ||
-        placeInfos.some((item) => canEditItem(item, user)) ||
-        webLinks.some((item) => canEditItem(item, user)) ||
-        comments.some((item) => canEditItem(item, user))
+        canEditItem(spot) ||
+        worlds.some(canEditItem) ||
+        placeInfos.some(canEditItem) ||
+        webLinks.some(canEditItem) ||
+        comments.some(canEditItem)
     ));
 }
 
-function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, onMessage }) {
+function AddContentForms({ spot, registrantName, onCreated, onSaved, onMessage }) {
     const [kind, setKind] = useState("world");
     const [isSaving, setIsSaving] = useState(false);
     const [world, setWorld] = useState(createEmptyWorld());
@@ -837,7 +962,6 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
             if (kind === "world") {
                 await createVRChatWorld({
                     spotId: spot.id,
-                    registeredByUserId,
                     vrChatWorldId: normalizeWorldId(world.vrChatWorldId),
                     name: world.name,
                     recommendedCapacity: Number(world.recommendedCapacity),
@@ -852,7 +976,6 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
             } else if (kind === "placeInfo") {
                 await createPlaceInfo({
                     spotId: spot.id,
-                    registeredByUserId,
                     name: placeInfo.name,
                     address: placeInfo.address,
                     businessInformation: placeInfo.businessInformation
@@ -861,7 +984,6 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
             } else if (kind === "webLink") {
                 await createWebLink({
                     spotId: spot.id,
-                    registeredByUserId,
                     siteName: webLink.siteName,
                     url: webLink.url
                 });
@@ -869,13 +991,13 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
             } else {
                 await createComment({
                     spotId: spot.id,
-                    registeredByUserId,
                     comments: comment
                 });
                 setComment("");
             }
 
             await onCreated(spot.id);
+            onSaved();
             onMessage("追加しました。");
         } catch (error) {
             onMessage(error.message);
@@ -900,13 +1022,12 @@ function AddContentForms({ spot, registeredByUserId, registrantName, onCreated, 
     );
 }
 
-function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, currentUser, actorUserId, onChanged, onDeleted, onMessage }) {
-    const actor = { actorUserId, actorIsAdmin: currentUser.isAdmin };
+export function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, currentUser, onChanged, onDeleted, onSaved = () => {}, onMessage }) {
     const canDelete = currentUser.isAdmin;
-    const editableWorlds = editableItems(worlds, currentUser);
-    const editablePlaceInfos = editableItems(placeInfos, currentUser);
-    const editableWebLinks = editableItems(webLinks, currentUser);
-    const editableComments = editableItems(comments, currentUser);
+    const editableWorlds = editableItems(worlds);
+    const editablePlaceInfos = editableItems(placeInfos);
+    const editableWebLinks = editableItems(webLinks);
+    const editableComments = editableItems(comments);
 
     return React.createElement("section", { className: "admin-panel" },
         React.createElement("p", { className: "eyebrow" }, currentUser.isAdmin ? "Admin edit" : "Owner edit"),
@@ -914,15 +1035,15 @@ function AdminPanel({ spot, worlds, placeInfos, webLinks, comments, areas, curre
         React.createElement("p", { className: "meta" }, currentUser.isAdmin
             ? "管理者として Spot と関連データを編集・削除できます。"
             : "あなたが登録した Spot と関連データを編集できます。削除は管理者のみ可能です。"),
-        canEditItem(spot, currentUser) ? React.createElement(AdminSpotEditor, { spot, areas, actor, canDelete, onChanged, onDeleted, onMessage }) : null,
-        React.createElement(AdminWorldSection, { items: editableWorlds, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminPlaceInfoSection, { items: editablePlaceInfos, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminWebLinkSection, { items: editableWebLinks, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage }),
-        React.createElement(AdminCommentSection, { items: editableComments, actor, canDelete, onChanged: () => onChanged(spot.id), onMessage })
+        canEditItem(spot) ? React.createElement(AdminSpotEditor, { spot, areas, canDelete, onChanged, onDeleted, onSaved, onMessage }) : null,
+        React.createElement(AdminWorldSection, { items: editableWorlds, canDelete, onChanged: () => onChanged(spot.id), onSaved, onMessage }),
+        React.createElement(AdminPlaceInfoSection, { items: editablePlaceInfos, canDelete, onChanged: () => onChanged(spot.id), onSaved, onMessage }),
+        React.createElement(AdminWebLinkSection, { items: editableWebLinks, canDelete, onChanged: () => onChanged(spot.id), onSaved, onMessage }),
+        React.createElement(AdminCommentSection, { items: editableComments, canDelete, onChanged: () => onChanged(spot.id), onSaved, onMessage })
     );
 }
 
-function AdminSpotEditor({ spot, areas, actor, canDelete, onChanged, onDeleted, onMessage }) {
+function AdminSpotEditor({ spot, areas, canDelete, onChanged, onDeleted, onSaved, onMessage }) {
     const [draft, setDraft] = useState(createSpotDraft(spot));
     const [isSaving, setIsSaving] = useState(false);
 
@@ -938,7 +1059,6 @@ function AdminSpotEditor({ spot, areas, actor, canDelete, onChanged, onDeleted, 
         try {
             const updated = await updateSpot({
                 id: spot.id,
-                ...actor,
                 name: draft.name,
                 latitude: Number(draft.latitude),
                 longitude: Number(draft.longitude),
@@ -946,6 +1066,7 @@ function AdminSpotEditor({ spot, areas, actor, canDelete, onChanged, onDeleted, 
                 description: draft.description
             });
             await onChanged(updated.id);
+            onSaved();
             onMessage("Spot を更新しました。");
         } catch (error) {
             onMessage(error.message);
@@ -963,7 +1084,7 @@ function AdminSpotEditor({ spot, areas, actor, canDelete, onChanged, onDeleted, 
         onMessage("");
 
         try {
-            await deleteSpot({ id: spot.id, ...actor });
+            await deleteSpot({ id: spot.id });
             await onDeleted();
             onMessage("Spot を削除しました。");
         } catch (error) {
@@ -988,7 +1109,7 @@ function AdminSpotEditor({ spot, areas, actor, canDelete, onChanged, onDeleted, 
     );
 }
 
-function AdminWorldSection({ items, actor, canDelete, onChanged, onMessage }) {
+function AdminWorldSection({ items, canDelete, onChanged, onSaved, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "VRChat Worlds",
         items,
@@ -997,7 +1118,6 @@ function AdminWorldSection({ items, actor, canDelete, onChanged, onMessage }) {
         renderForm: (draft, setDraft) => React.createElement(WorldFields, { value: draft, onChange: setDraft }),
         onUpdate: (world, draft) => updateVRChatWorld({
             id: world.id,
-            ...actor,
             vrChatWorldId: normalizeWorldId(draft.vrChatWorldId),
             name: draft.name,
             recommendedCapacity: Number(draft.recommendedCapacity),
@@ -1008,14 +1128,15 @@ function AdminWorldSection({ items, actor, canDelete, onChanged, onMessage }) {
             ios: draft.ios,
             isPrivate: draft.isPrivate
         }),
-        onDelete: (world) => deleteVRChatWorld({ id: world.id, ...actor }),
+        onDelete: (world) => deleteVRChatWorld({ id: world.id }),
         canDelete,
         onChanged,
+        onSaved,
         onMessage
     });
 }
 
-function AdminPlaceInfoSection({ items, actor, canDelete, onChanged, onMessage }) {
+function AdminPlaceInfoSection({ items, canDelete, onChanged, onSaved, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Place Infos",
         items,
@@ -1024,19 +1145,19 @@ function AdminPlaceInfoSection({ items, actor, canDelete, onChanged, onMessage }
         renderForm: (draft, setDraft) => React.createElement(PlaceInfoFields, { value: draft, onChange: setDraft }),
         onUpdate: (placeInfo, draft) => updatePlaceInfo({
             id: placeInfo.id,
-            ...actor,
             name: draft.name,
             address: draft.address,
             businessInformation: draft.businessInformation
         }),
-        onDelete: (placeInfo) => deletePlaceInfo({ id: placeInfo.id, ...actor }),
+        onDelete: (placeInfo) => deletePlaceInfo({ id: placeInfo.id }),
         canDelete,
         onChanged,
+        onSaved,
         onMessage
     });
 }
 
-function AdminWebLinkSection({ items, actor, canDelete, onChanged, onMessage }) {
+function AdminWebLinkSection({ items, canDelete, onChanged, onSaved, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Web Links",
         items,
@@ -1045,18 +1166,18 @@ function AdminWebLinkSection({ items, actor, canDelete, onChanged, onMessage }) 
         renderForm: (draft, setDraft) => React.createElement(WebLinkFields, { value: draft, onChange: setDraft }),
         onUpdate: (webLink, draft) => updateWebLink({
             id: webLink.id,
-            ...actor,
             siteName: draft.siteName,
             url: draft.url
         }),
-        onDelete: (webLink) => deleteWebLink({ id: webLink.id, ...actor }),
+        onDelete: (webLink) => deleteWebLink({ id: webLink.id }),
         canDelete,
         onChanged,
+        onSaved,
         onMessage
     });
 }
 
-function AdminCommentSection({ items, actor, canDelete, onChanged, onMessage }) {
+function AdminCommentSection({ items, canDelete, onChanged, onSaved, onMessage }) {
     return React.createElement(AdminEditableSection, {
         title: "Comments",
         items,
@@ -1068,17 +1189,17 @@ function AdminCommentSection({ items, actor, canDelete, onChanged, onMessage }) 
         }),
         onUpdate: (comment, draft) => updateComment({
             id: comment.id,
-            ...actor,
             comments: draft.comments
         }),
-        onDelete: (comment) => deleteComment({ id: comment.id, ...actor }),
+        onDelete: (comment) => deleteComment({ id: comment.id }),
         canDelete,
         onChanged,
+        onSaved,
         onMessage
     });
 }
 
-function AdminEditableSection({ title, items, getLabel, createDraft, renderForm, onUpdate, onDelete, canDelete, onChanged, onMessage }) {
+function AdminEditableSection({ title, items, getLabel, createDraft, renderForm, onUpdate, onDelete, canDelete, onChanged, onSaved, onMessage }) {
     const [editingId, setEditingId] = useState(null);
     const [draft, setDraft] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -1098,6 +1219,7 @@ function AdminEditableSection({ title, items, getLabel, createDraft, renderForm,
             setEditingId(null);
             setDraft(null);
             await onChanged();
+            onSaved();
             onMessage(`${title} を更新しました。`);
         } catch (error) {
             onMessage(error.message);
@@ -1164,7 +1286,16 @@ function WorldFields({ value, onChange }) {
             React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.pc, onChange: update("pc") }), "PC"),
             React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.android, onChange: update("android") }), "Android"),
             React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.ios, onChange: update("ios") }), "iOS"),
-            React.createElement("label", null, React.createElement("input", { type: "checkbox", checked: value.isPrivate, onChange: update("isPrivate") }), "Private")
+            React.createElement(
+                "label",
+                null,
+                React.createElement("input", {
+                    type: "checkbox",
+                    checked: value.isPrivate,
+                    onChange: update("isPrivate")
+                }),
+                "VRChat上で非公開（private release）"
+            )
         )
     );
 }
@@ -1220,27 +1351,99 @@ function SearchPanel({ query, resultCount, onChange, onSubmit, onClear, compact 
     );
 }
 
-function EmptyState({ onReload }) {
+function EmptyState({ onReload, currentUser, onOpenProfile }) {
     return React.createElement("section", { className: "card" },
         React.createElement("h3", null, "Spot を選択してください"),
         React.createElement("p", { className: "meta" }, "地図上の marker をクリックすると詳細が表示されます。新しい Spot は地図を右クリックして登録します。"),
+        currentUser && !currentUser.hasVRChatDisplayName
+            ? React.createElement("button", { type: "button", onClick: onOpenProfile }, "VRChat表示名を登録")
+            : null,
         React.createElement("button", { type: "button", className: "secondary", onClick: onReload }, "Spot を再読み込み")
     );
 }
 
-function SpotList({ spots, selectedSpotId, onSelect }) {
+function SpotList({ spots, areas, selectedSpotId, resetKey, onSelect }) {
+    const groups = useMemo(
+        () => groupSpotsByArea(spots, areas),
+        [spots, areas]);
+    const [openCategories, setOpenCategories] = useState(() => new Set<string>());
+
+    useEffect(() => {
+        setOpenCategories(new Set());
+    }, [resetKey]);
+
+    useEffect(() => {
+        if (!selectedSpotId) {
+            return;
+        }
+
+        const selectedSpot = spots.find((spot) => spot.id === selectedSpotId);
+        if (!selectedSpot) {
+            return;
+        }
+
+        const selectedKey = getSpotCategoryKey(selectedSpot, areas);
+        const availableKeys = new Set(groups.map((group) => group.key));
+        setOpenCategories((current) => {
+            const next = new Set(
+                [...current].filter((key) => availableKeys.has(key)));
+            next.add(selectedKey);
+
+            return next.size === current.size &&
+                [...next].every((key) => current.has(key))
+                ? current
+                : next;
+        });
+    }, [areas, groups, selectedSpotId, spots]);
+
+    function toggleCategory(key: string) {
+        setOpenCategories((current) => {
+            const next = new Set(current);
+            if (next.has(key)) {
+                next.delete(key);
+            } else {
+                next.add(key);
+            }
+
+            return next;
+        });
+    }
+
     return React.createElement("section", { className: "card" },
         React.createElement("h3", null, "Spot 一覧"),
         spots.length === 0
             ? React.createElement("p", { className: "meta" }, "登録済み Spot はありません。")
-            : React.createElement("div", { className: "related-list" }, spots.map((spot) =>
-                React.createElement("button", {
-                    key: spot.id,
-                    type: "button",
-                    className: spot.id === selectedSpotId ? "" : "secondary",
-                    onClick: () => onSelect(spot)
-                }, spot.name)
-            ))
+            : React.createElement("div", { className: "spot-region-list" }, groups.map((group) => {
+                const isOpen = openCategories.has(group.key);
+                const panelId = `spot-region-${group.key}`;
+
+                return React.createElement("section", { key: group.key, className: "spot-region-group" },
+                    React.createElement("button", {
+                        type: "button",
+                        className: "spot-region-heading",
+                        "aria-expanded": isOpen,
+                        "aria-controls": panelId,
+                        onClick: () => toggleCategory(group.key)
+                    },
+                        React.createElement("span", { className: "spot-region-chevron", "aria-hidden": "true" }, isOpen ? "⌄" : "›"),
+                        React.createElement("span", { className: "spot-region-name" }, group.name),
+                        React.createElement("span", { className: "spot-region-count" }, group.spots.length)
+                    ),
+                    React.createElement("div", {
+                        id: panelId,
+                        className: "spot-region-panel",
+                        hidden: !isOpen
+                    }, group.spots.map((spot) =>
+                        React.createElement("button", {
+                            key: spot.id,
+                            type: "button",
+                            className: spot.id === selectedSpotId ? "" : "secondary",
+                            onClick: () => onSelect(spot)
+                        }, spot.name)
+                    ))
+                );
+            })
+            )
     );
 }
 
@@ -1253,7 +1456,7 @@ function renderWorld(world) {
             fallbackTitle: world.name,
             fallbackDescription: world.description
         }),
-        React.createElement("p", { className: "meta" }, `追加ユーザー: ${world.registeredByUserId}`),
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${world.registeredByDisplayName}`),
         React.createElement("p", { className: "meta" }, `人数: ${world.recommendedCapacity} 推奨 / ${world.capacity} 最大`),
         React.createElement("p", { className: "meta" }, `Platform: ${platformLabel(world)}`)
     );
@@ -1262,7 +1465,7 @@ function renderWorld(world) {
 function renderPlaceInfo(placeInfo) {
     return React.createElement(React.Fragment, null,
         React.createElement("strong", null, placeInfo.name),
-        React.createElement("p", { className: "meta" }, `追加ユーザー: ${placeInfo.registeredByUserId}`),
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${placeInfo.registeredByDisplayName}`),
         React.createElement("p", { className: "meta" }, placeInfo.address),
         renderMarkdown(placeInfo.businessInformation)
     );
@@ -1274,7 +1477,7 @@ function renderWebLink(webLink) {
             url: webLink.url,
             fallbackTitle: webLink.siteName
         }),
-        React.createElement("p", { className: "meta" }, `追加ユーザー: ${webLink.registeredByUserId}`)
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${webLink.registeredByDisplayName}`)
     );
 }
 
@@ -1319,11 +1522,11 @@ function OgpPreviewCard({ url, fallbackTitle, fallbackDescription = "" }) {
 function renderComment(comment) {
     return React.createElement(React.Fragment, null,
         renderMarkdown(comment.comments),
-        React.createElement("p", { className: "meta" }, `追加ユーザー: ${comment.registeredByUserId}`)
+        React.createElement("p", { className: "meta" }, `追加ユーザー: ${comment.registeredByDisplayName}`)
     );
 }
 
-async function loadCurrentUser() {
+export async function loadCurrentUser() {
     const response = await fetch("/auth/me");
     if (!response.ok) {
         return null;
@@ -1350,17 +1553,17 @@ async function loadDevelopmentApp() {
     return response.json();
 }
 
-async function loadAreas() {
+export async function loadAreas() {
     const body = await postJson("/areas/list", {});
     return unwrap(body).areas ?? [];
 }
 
-async function loadSpots(query = "") {
+export async function loadSpots(query = "") {
     const body = await postJson("/spots/list", { query });
     return unwrap(body).spots ?? [];
 }
 
-async function getSpot(id) {
+export async function getSpot(id) {
     const body = await postJson("/spots/get", { id });
     return unwrap(body);
 }
@@ -1455,7 +1658,7 @@ async function deleteComment(payload) {
     return unwrap(body);
 }
 
-async function postJson(url, payload) {
+export async function postJson(url, payload) {
     const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1470,7 +1673,7 @@ async function postJson(url, payload) {
     return response.json();
 }
 
-function unwrap(body) {
+export function unwrap(body) {
     return body?.value ?? body;
 }
 
@@ -1494,7 +1697,7 @@ function formatCoordinate(value) {
     return Number(value).toFixed(6);
 }
 
-function formatAreaName(areaCode, areas) {
+export function formatAreaName(areaCode, areas) {
     const numericAreaCode = Number(areaCode);
     const area = areas.find((item) => item.areaCode === numericAreaCode);
     return area ? area.areaName : `未定義エリア (${numericAreaCode})`;
@@ -1733,4 +1936,7 @@ function escapeHtml(value) {
     }[character]));
 }
 
-createRoot(document.querySelector("#root")).render(React.createElement(App));
+const rootElement = document.querySelector("#root");
+if (rootElement && document.body.dataset.app === "map") {
+    createRoot(rootElement).render(React.createElement(App));
+}

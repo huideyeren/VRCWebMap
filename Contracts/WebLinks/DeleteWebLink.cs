@@ -9,9 +9,7 @@ public static class DeleteWebLink
     /// 削除対象の Web サイト情報と操作ユーザーを指定する入力です。
     /// </summary>
     /// <param name="Id">削除する Web サイト情報の ID です。</param>
-    /// <param name="ActorUserId">削除操作を行うユーザーの ID です。</param>
-    /// <param name="ActorIsAdmin">削除操作を行うユーザーが管理者かどうかです。</param>
-    public sealed record Request(Guid Id, string ActorUserId, bool ActorIsAdmin);
+    public sealed record Request(Guid Id);
 
     /// <summary>
     /// 削除された Web サイト情報 ID を返すレスポンスです。

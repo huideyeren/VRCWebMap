@@ -2,6 +2,7 @@ using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.VRChatWorlds;
 using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.Tests.TestDoubles;
+using VrcWebMap.Backend.UseCases.Users;
 using VrcWebMap.Backend.UseCases.VRChatWorlds;
 
 namespace VrcWebMap.Backend.Tests.UseCases.VRChatWorlds;
@@ -13,10 +14,9 @@ public sealed class CreateVRChatWorldUseCaseTests
     {
         var spot = new Spot(Guid.NewGuid(), "owner-user", "スポット", 35, 139, AreaCodes.Japan.Tokyo, "説明");
         var repository = new FakeSpotRepository(spot);
-        var useCase = new CreateVRChatWorldUseCase(repository);
+        var useCase = CreateUseCase(repository);
         var request = new CreateVRChatWorld.Request(
             spot.Id,
-            " discord-user-id ",
             " wrld_00000000-0000-0000-0000-000000000000 ",
             " テストワールド ",
             16,
@@ -30,21 +30,22 @@ public sealed class CreateVRChatWorldUseCaseTests
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        Assert.Equal(spot.Id, result.Value.World.SpotId);
-        Assert.Equal("discord-user-id", result.Value.World.RegisteredByUserId);
+        Assert.Equal("VRChat User", result.Value.World.RegisteredByDisplayName);
+        Assert.True(result.Value.World.CanEdit);
         Assert.Equal("wrld_00000000-0000-0000-0000-000000000000", result.Value.World.VRChatWorldId);
-        Assert.Equal("public", result.Value.World.ReleaseStatus);
-        Assert.Single(repository.SavedWorlds);
+        Assert.False(result.Value.World.IsPrivate);
+        var saved = Assert.Single(repository.SavedWorlds);
+        Assert.Equal(spot.Id, saved.SpotId);
+        Assert.Equal("discord-user-id", saved.RegisteredByUserId);
     }
 
     [Fact]
     public async Task ExecuteAsync_EmptySpotId_ReturnsValidation()
     {
         var repository = new FakeSpotRepository();
-        var useCase = new CreateVRChatWorldUseCase(repository);
+        var useCase = CreateUseCase(repository);
         var request = new CreateVRChatWorld.Request(
             Guid.Empty,
-            "discord-user-id",
             "wrld_00000000-0000-0000-0000-000000000000",
             "テストワールド",
             16,
@@ -66,10 +67,9 @@ public sealed class CreateVRChatWorldUseCaseTests
     public async Task ExecuteAsync_MissingSpot_ReturnsNotFound()
     {
         var repository = new FakeSpotRepository();
-        var useCase = new CreateVRChatWorldUseCase(repository);
+        var useCase = CreateUseCase(repository);
         var request = new CreateVRChatWorld.Request(
             Guid.NewGuid(),
-            "discord-user-id",
             "wrld_00000000-0000-0000-0000-000000000000",
             "テストワールド",
             16,
@@ -86,4 +86,13 @@ public sealed class CreateVRChatWorldUseCaseTests
         Assert.Equal(KawaErrorKind.NotFound, result.Error.Kind);
         Assert.Empty(repository.SavedWorlds);
     }
+
+    private static CreateVRChatWorldUseCase CreateUseCase(FakeSpotRepository repository) =>
+        new(
+            repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("discord-user-id"),
+            new FakeCurrentActorAccessor(new CurrentActor(
+                "discord-user-id",
+                IsAdmin: false,
+                HasVRChatDisplayName: true)));
 }

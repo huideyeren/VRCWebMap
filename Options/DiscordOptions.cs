@@ -13,7 +13,5 @@ public sealed class DiscordOptions
 
     public string RequiredGuildId { get; init; } = string.Empty;
 
-    public string BotToken { get; init; } = string.Empty;
-
-    public string AdminRoleName { get; init; } = "マップ管理者";
+    public string[] InitialAdminUserIds { get; init; } = [];
 }

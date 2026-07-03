@@ -60,8 +60,106 @@ Content-Type: application/json
 POST {{VrcWebMap_Backend_HostAddress}}/portal/world-data
 Content-Type: application/json
 
+{}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/portal/world-data/merge
+Content-Type: application/json
+
 {
-  "showPrivateWorld": true
+  "existingJson": "{\"ReverseCategorys\":false,\"ShowPrivateWorld\":true,\"Categorys\":[]}"
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/portal-categories/list
+Content-Type: application/json
+
+{}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/portal-categories/create
+Content-Type: application/json
+
+{
+  "name": "個人用ポータル",
+  "visibility": 0
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/portal-categories/update
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "name": "名前変更後のポータル"
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/portal-categories/delete
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-0000-0000-000000000000"
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/portal-worlds/create
+Content-Type: application/json
+
+{
+  "portalCategoryId": "00000000-0000-0000-0000-000000000000",
+  "vrChatWorldId": "wrld_00000000-0000-0000-0000-000000000000",
+  "name": "地図外ワールド",
+  "recommendedCapacity": 16,
+  "capacity": 32,
+  "description": "ポータルカテゴリに直接登録するワールド",
+  "pc": true,
+  "android": false,
+  "ios": false,
+  "isPrivate": false
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/portal-worlds/update
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "vrChatWorldId": "wrld_00000000-0000-0000-0000-000000000000",
+  "name": "更新した地図外ワールド",
+  "recommendedCapacity": 16,
+  "capacity": 32,
+  "description": "更新後の説明",
+  "pc": true,
+  "android": true,
+  "ios": false,
+  "isPrivate": false
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/portal-worlds/move
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "destinationPortalCategoryId": "00000000-0000-0000-0000-000000000000"
+}
+
+###
+
+POST {{VrcWebMap_Backend_HostAddress}}/portal-worlds/delete
+Content-Type: application/json
+
+{
+  "id": "00000000-0000-0000-0000-000000000000"
 }
 
 ###

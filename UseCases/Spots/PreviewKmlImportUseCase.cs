@@ -1,5 +1,6 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Spots;
 
@@ -14,14 +15,20 @@ namespace VrcWebMap.Backend.UseCases.Spots;
 /// <summary>
 /// KML/KMZ import 候補を preview するユースケースです。
 /// </summary>
-public sealed class PreviewKmlImportUseCase
+public sealed class PreviewKmlImportUseCase(ICurrentActorAccessor currentActor)
     : IUseCase<PreviewKmlImport.Request, PreviewKmlImport.Response>
 {
     public Task<KawaResult<PreviewKmlImport.Response>> ExecuteAsync(
         PreviewKmlImport.Request request,
         CancellationToken cancellationToken = default)
     {
-        if (!request.ActorIsAdmin)
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<PreviewKmlImport.Response>.Failure(actorError));
+        }
+
+        if (!actor!.IsAdmin)
         {
             return Task.FromResult(KawaResult<PreviewKmlImport.Response>.Failure(
                 new KawaError(KawaErrorKind.Forbidden, "KML/KMZ import preview は管理者のみ実行できます。")));

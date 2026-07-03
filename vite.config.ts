@@ -5,9 +5,13 @@ export default defineConfig({
     emptyOutDir: true,
     outDir: "wwwroot/assets",
     rollupOptions: {
-      input: "src/main.tsx",
+      input: {
+        app: "src/main.tsx",
+        admin: "src/admin.tsx",
+        portal: "src/portal.tsx"
+      },
       output: {
-        entryFileNames: "app.js",
+        entryFileNames: "[name].js",
         chunkFileNames: "[name].js",
         // Keep the HTML references stable while still allowing Leaflet image
         // assets to keep their package filenames under the same directory.

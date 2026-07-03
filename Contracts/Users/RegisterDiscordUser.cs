@@ -16,15 +16,13 @@ public static class RegisterDiscordUser
     /// <param name="AvatarHash">Discord API が返した avatar hash です。</param>
     /// <param name="RequiredGuildId">参加が必須の Discord guild ID です。</param>
     /// <param name="IsRequiredGuildMember">対象 guild への参加を server-side に確認できた場合は <c>true</c> です。</param>
-    /// <param name="IsAdmin">Discord の管理者ロールを確認できた場合は <c>true</c> です。</param>
     public sealed record Request(
         string DiscordUserId,
         string Username,
         string? GlobalName,
         string? AvatarHash,
         string RequiredGuildId,
-        bool IsRequiredGuildMember,
-        bool IsAdmin = false);
+        bool IsRequiredGuildMember);
 
     /// <summary>
     /// 登録または更新された Discord ユーザーです。

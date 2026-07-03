@@ -8,7 +8,13 @@ namespace VrcWebMap.Backend.UseCases.Users;
 /// </summary>
 public interface IDiscordUserRepository
 {
+    DiscordUser[] List();
+
     bool TryGetByDiscordUserId(string discordUserId, [NotNullWhen(true)] out DiscordUser? user);
+
+    bool TryGetByNormalizedVRChatDisplayName(
+        string normalizedVRChatDisplayName,
+        [NotNullWhen(true)] out DiscordUser? user);
 
     void Upsert(DiscordUser user);
 }

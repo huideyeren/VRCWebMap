@@ -1,0 +1,2 @@
+# Replace /opt/vrcwebmap with the absolute repository path.
+0 3 * * 0 cd /opt/vrcwebmap && docker compose --env-file .env.backup --profile backup run --rm db-backup backup

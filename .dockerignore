@@ -7,5 +7,7 @@ VrcWebMap.Backend.Tests/obj/
 .vs/
 node_modules/
 wwwroot/assets/
+# ローカル運用用のSSH秘密鍵・公開鍵をbuild contextへ含めません。
+id_ed25519*
 *.user
 *.suo

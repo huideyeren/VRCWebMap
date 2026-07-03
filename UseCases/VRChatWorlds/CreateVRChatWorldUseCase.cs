@@ -1,7 +1,9 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.VRChatWorlds;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.VRChatWorlds;
 
@@ -16,7 +18,10 @@ namespace VrcWebMap.Backend.UseCases.VRChatWorlds;
 /// <summary>
 /// スポットに VRChat ワールド情報を追加するユースケースです。
 /// </summary>
-public sealed class CreateVRChatWorldUseCase(ISpotRepository spots)
+public sealed class CreateVRChatWorldUseCase(
+    ISpotRepository spots,
+    IDiscordUserRepository users,
+    ICurrentActorAccessor currentActor)
     : IUseCase<CreateVRChatWorld.Request, CreateVRChatWorld.Response>
 {
     /// <summary>
@@ -26,6 +31,12 @@ public sealed class CreateVRChatWorldUseCase(ISpotRepository spots)
         CreateVRChatWorld.Request request,
         CancellationToken cancellationToken = default)
     {
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<CreateVRChatWorld.Response>.Failure(actorError));
+        }
+
         if (request.SpotId == Guid.Empty)
         {
             var error = new KawaError(KawaErrorKind.Validation, "スポット ID は必須です。");
@@ -38,19 +49,18 @@ public sealed class CreateVRChatWorldUseCase(ISpotRepository spots)
             return Task.FromResult(KawaResult<CreateVRChatWorld.Response>.Failure(error));
         }
 
-        if (string.IsNullOrWhiteSpace(request.RegisteredByUserId) ||
-            string.IsNullOrWhiteSpace(request.VRChatWorldId) ||
+        if (string.IsNullOrWhiteSpace(request.VRChatWorldId) ||
             string.IsNullOrWhiteSpace(request.Name) ||
             string.IsNullOrWhiteSpace(request.Description))
         {
-            var error = new KawaError(KawaErrorKind.Validation, "登録者 ID、VRChat ワールド ID、名前、説明は必須です。");
+            var error = new KawaError(KawaErrorKind.Validation, "VRChat ワールド ID、名前、説明は必須です。");
             return Task.FromResult(KawaResult<CreateVRChatWorld.Response>.Failure(error));
         }
 
         var world = new VRChatWorld(
             Guid.NewGuid(),
             request.SpotId,
-            request.RegisteredByUserId.Trim(),
+            actor!.DiscordUserId,
             request.VRChatWorldId.Trim(),
             request.Name.Trim(),
             request.RecommendedCapacity,
@@ -63,7 +73,8 @@ public sealed class CreateVRChatWorldUseCase(ISpotRepository spots)
 
         spots.UpsertWorld(world);
 
-        var response = new CreateVRChatWorld.Response(world);
+        var mapper = new PublicResourceMapper(users.List(), actor);
+        var response = new CreateVRChatWorld.Response(mapper.ToVRChatWorld(world));
         return Task.FromResult(KawaResult<CreateVRChatWorld.Response>.Success(response));
     }
 }

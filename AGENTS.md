@@ -19,38 +19,48 @@
 - 地図は位置指定がない場合、デフォルト中心を使う。ブラウザ位置情報が取得できた場合は現在地周辺を中心にするが、現在地はサーバーへ保存しない。
 - URL に `?spotId={id}`、`?spot={id}`、または `#spot={id}` が含まれる場合は、その Spot を読み込んで地図の中心にする。Spot 選択時は直リンク用に `?spotId={id}` を URL に反映する。
 - 都道府県コードと地域カテゴリの対応は `Models/AreaDefinition.cs` と `Models/AreaDefinitions.cs` に定義する。
-- 地域カテゴリは、将来実装する VRChat ワールドポータルシステムのカテゴリとして利用する。
+- 地域カテゴリは、VRChat ワールドポータルシステムのカテゴリとして利用する。
 - 三重県は現状 `AreaCategory.Chubu` として扱う。ただし、将来的に `AreaCategory.Kansai` へ移す可能性がある。
 - 1つの `Spot` には、0件以上の `VRChatWorld` が紐づく。
-- `VRChatWorld` は将来のポータル JSON の world record の基礎モデルとして扱う。
+- `VRChatWorld` はポータル JSON の world record の基礎モデルとして扱う。
 - `VRChatWorld` は登録者を追跡するため、登録者 ID を保持する。
-- `VRChatWorld.IsPrivate` は基本 `false` とし、ポータル用 JSON では `false` を `public`、`true` を `private` として扱う。
+- `VRChatWorld.IsPrivate` は VRChat 上の release status を表す。`false` を `public`、`true` を `private` としてポータル用 JSON に出力し、WPPLS の閲覧権限には使用しない。
 - 地図アプリへ `VRChatWorld` を出力するときは、VRChat world ID だけではなく `https://vrchat.com/home/world/{VRChatWorldId}/info` 形式のワールドページ URL を使う。
 - `VRChatWorld` のワールドページ URL は `/web-links/preview` で OGP preview を取得して表示できる。ただし preview は保存データには含めない。
 - ポータル用 JSON は `Categorys[] -> Worlds[]` の形で出力し、`Category` には `AreaCategory` の日本語表示名を使う。
 - ポータル用 JSON の出力 endpoint は `POST /portal/world-data` とする。
 - ポータル用 JSON は幻会興業さんの `PortalLibrarySystem（WPPLS）` 向けに出力する。参照: https://booth.pm/ja/items/6659099
+- ポータル用 JSON の `ShowPrivateWorld` は常に `true` とし、public/private release の両方を選択可能にする。
+- ポータル用 JSON の world `ID` には URL ではなく `wrld_...` 形式の VRChat world ID を出力する。
+- 地図外ワールドは座標を持たない `PortalCategory` に所属し、通常の `Spot` には所属させない。`VRChatWorld` は `SpotId` または `PortalCategoryId` の片方だけを持つ。
+- `PortalCategory` は `Personal` と `Public` を持つ。一般ユーザーは本人所有の `Personal` を複数作成でき、管理者は `Public` と任意ユーザー所有の `Personal` を作成できる。
+- `PortalCategory.Visibility` と所有者は作成後に変更しない。`Personal` は所有者または管理者、`Public` は管理者だけが更新・削除・配下ワールド変更を行える。
+- 未ログイン時のポータルJSONは地域カテゴリと `Public` だけを出力する。ログイン時は管理者を含め本人所有の `Personal` だけを追加し、他人の `Personal` は出力しない。
+- `Personal` の所有者の最新VRChat Display Nameを `RoleName` と `DisplayNames` に使い、カテゴリの `PermittedRoles` から同じ名前を参照する。
+- `POST /portal/world-data/merge` は未ログインでも利用可能とし、入力上限をUTF-8で5 MiBとする。入力JSONは保存・cache・log出力しない。
+- JSONマージは未知プロパティを保持し、カテゴリ名の重複と同名Roleの競合をValidationとして拒否する。
 - 1つの `Spot` には、0件以上の `PlaceInfo` が紐づく。
 - `PlaceInfo` の営業情報は、開店時刻・閉店時刻・定休日の個別プロパティではなく、Markdown 対応の `BusinessInformation` 文字列として保持する。昼営業、夜営業、定休日、臨時休業などを自由に併記できる形にする。
 - 1つの `Spot` には、0件以上の `WebLink` が紐づく。
 - `WebLink` はサイト名と URL のみを持つ Web サイト情報として扱う。飲食店だけでなく、場所や VRChat ワールドに関連する任意の外部サイトを扱える形にする。
 - `WebLink` と `VRChatWorld` の OGP preview は `/web-links/preview` で server-side に取得する一時表示情報として扱い、保存データには含めない。SSRF 対策として public な `http` / `https` URL のみを許可し、localhost/private network address は拒否する。
 - 1つの `Spot` には、0件以上の `Comment` が紐づく。
-- `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` は `Spot` に従属する情報として扱う。
-- `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の登録は、先に `Spot` を登録してから行う。登録 request には必ず `SpotId` を含める。
+- `SpotId` を持つ `VRChatWorld` と、`PlaceInfo`、`WebLink`、`Comment` は `Spot` に従属する情報として扱う。
+- Spot側の `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の登録は、先に `Spot` を登録してから行う。登録 request には必ず `SpotId` を含める。地図外 `VRChatWorld` は先に `PortalCategory` を登録し、`PortalCategoryId` を含める。
 - `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` は登録者 ID を保持する。
 - `Spot`、`VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の登録は誰でも可能とする。
 - 一覧と詳細閲覧は誰でも可能とする。
 - `Spot` 詳細閲覧では、Spot 本体に加えて紐づく `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` をすべて含める。
-- `Spot`、`VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の更新・削除は、管理者または対象データを登録したユーザーだけに許可する。
+- Spot側の `Spot`、`VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の更新・削除は、管理者または対象データを登録したユーザーだけに許可する。地図外 `VRChatWorld` は親 `PortalCategory` の権限に従う。
 - `Spot` に紐づく `VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` が1件でも存在する場合、`Spot` の削除は `Conflict` として拒否する。関連データを先に削除してから `Spot` を削除する。
 - 仮フロントエンドでは、`/auth/me` が `isAdmin: true` を返す場合のみ管理者編集パネルを表示し、各データの更新・削除 UI を提供する。
-- 認証基盤が未実装の間、更新・削除 request には `ActorUserId` と `ActorIsAdmin` を明示的に含める。将来 Discord 認証を実装したら、この値は transport adapter 側で認証情報から組み立てる。
+- 書き込み request に `ActorUserId`、`ActorIsAdmin`、`RegisteredByUserId` を含めない。現在ユーザーは transport adapter が cookie session の Discord ユーザー ID からDBの最新状態を解決し、`ICurrentActorAccessor` 経由で UseCase に渡す。
 - ユーザー登録とログインは Discord アカウント連携を想定する。
 - アプリケーションを利用できるユーザーは、設定された Discord サーバーに参加している Discord ユーザーに限定する。
 - Discord OAuth では `identify` と `guilds.members.read` scope を使い、transport adapter が Discord API で対象サーバー参加を確認する。
-- Discord の `マップ管理者` ロールを持つユーザーをアプリケーション管理者として扱う。
-- Discord member API が返すのは role ID なので、transport adapter は Bot token で guild roles を取得し、`Discord:AdminRoleName` に一致する role ID を解決して管理者判定する。
+- 初期管理者は `Discord:InitialAdminUserIds` に設定した Discord ユーザー ID で確立する。Discord Bot と guild role は管理者判定に使わない。
+- 初期管理者以外の管理者権限は、管理者が `/admin.html` のユーザー管理から付与・解除する。
+- 利用者は一意の VRChat Display Name を手動登録する。未登録でも閲覧できるが、Spot と関連情報の登録・更新・削除はできない。
 - Discord API の確認結果だけを `RegisterDiscordUserUseCase` に渡す。クライアントから自己申告された参加状態を信用しない。
 - Development 環境では Discord OAuth を使えない場合があるため、`/auth/dev/login/admin` と `/auth/dev/login/user` で開発用サンプルユーザーを登録・ログインできるようにする。
 - 開発用サンプルユーザーは `dev-admin-user`（管理者）と `dev-general-user`（一般ユーザー）とする。これらの endpoint は Development 環境でのみ登録し、production では公開しない。
@@ -93,9 +103,15 @@ Kawa アプリケーションを理解するときは、原則として次の順
 ## データベース方針
 
 - 既定では `InMemorySpotRepository` を使う。
-- `Database:Provider` が `PostgreSQL` で `ConnectionStrings:Postgres` が設定されている場合は、EF Core + Npgsql の `PostgreSqlSpotRepository` を使う。
+- `Database:Provider` が `PostgreSQL` で `ConnectionStrings:Postgres` が設定されている場合は、EF Core + Npgsql の `PostgreSqlSpotRepository` と `PostgreSqlPortalCategoryRepository` を使う。
 - PostgreSQL は Docker Compose で起動する。
 - 現段階では migrations ではなく `EnsureCreated()` で schema を作成する。永続運用へ移る前に migrations へ移行する。
+- PostgreSQLバックアップはComposeの`backup` profileにあるone-shot `db-backup` serviceを使い、通常の`docker compose up`では起動しない。
+- 完全なバックアップ世代はPostgreSQL custom形式の`.dump`、`.sha256`、最後にuploadする`.json` manifestで構成し、既定で4世代を保持する。
+- リスト・latest解決・リストアは検証済みmanifestだけを対象とし、リストア前にDB名、object key、size、checksum、`pg_restore --list`を検証する。
+- host側のリストアwrapperは対象keyを確定してからbackendを停止し、成功かつ元々稼働中だった場合だけ再起動する。リストア失敗時はbackendを停止したままにする。
+- `.env.backup`、PostgreSQL password、S3 secretはGitへcommitせず、ログにも出力しない。
+- `PortalCategories` や `VRChatWorlds` の所属先schemaを既存volumeへ適用する前に、運用先のバックアップを作成・検証する。
 - Redis は任意。現時点では実装に組み込まない。
 - Redis を使うのは、`/portal/world-data` など読み取りが重い endpoint で PostgreSQL read や JSON 生成が明確なボトルネックになった場合に限定する。
 - Redis を導入する場合は、まず `/portal/world-data` の短時間キャッシュから検討する。`Spot`、`VRChatWorld`、`PlaceInfo`、`WebLink`、`Comment` の更新・削除時に該当キャッシュを確実に無効化する設計を先に用意する。

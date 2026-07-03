@@ -20,6 +20,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<DiscordUser> DiscordUsers => Set<DiscordUser>();
 
+    public DbSet<PortalCategory> PortalCategories => Set<PortalCategory>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<DiscordUser>(entity =>
@@ -30,7 +32,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(user => user.GlobalName).HasMaxLength(100);
             entity.Property(user => user.AvatarHash).HasMaxLength(128);
             entity.Property(user => user.RequiredGuildId).HasMaxLength(128).IsRequired();
+            entity.Property(user => user.VRChatDisplayName).HasMaxLength(100);
+            entity.Property(user => user.NormalizedVRChatDisplayName).HasMaxLength(100);
             entity.HasIndex(user => user.RequiredGuildId);
+            entity.HasIndex(user => user.NormalizedVRChatDisplayName)
+                .IsUnique()
+                .HasFilter("\"NormalizedVRChatDisplayName\" IS NOT NULL");
         });
 
         modelBuilder.Entity<Spot>(entity =>
@@ -40,6 +47,20 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(spot => spot.Name).HasMaxLength(200).IsRequired();
             entity.Property(spot => spot.Description).IsRequired();
             entity.HasIndex(spot => spot.AreaCode);
+        });
+
+        modelBuilder.Entity<PortalCategory>(entity =>
+        {
+            entity.HasKey(category => category.Id);
+            entity.Property(category => category.RegisteredByUserId).HasMaxLength(128).IsRequired();
+            entity.Property(category => category.OwnerUserId).HasMaxLength(128);
+            entity.Property(category => category.Name).HasMaxLength(200).IsRequired();
+            entity.Property(category => category.NormalizedName).HasMaxLength(200).IsRequired();
+            entity.HasIndex(category => category.NormalizedName).IsUnique();
+            entity.ToTable(table => table.HasCheckConstraint(
+                "CK_PortalCategories_OwnerMatchesVisibility",
+                "(\"Visibility\" = 0 AND \"OwnerUserId\" IS NOT NULL) OR " +
+                "(\"Visibility\" = 1 AND \"OwnerUserId\" IS NULL)"));
         });
 
         modelBuilder.Entity<VRChatWorld>(entity =>
@@ -52,10 +73,19 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Ignore(world => world.WorldPageUrl);
             entity.Ignore(world => world.ReleaseStatus);
             entity.HasIndex(world => world.SpotId);
+            entity.HasIndex(world => world.PortalCategoryId);
             entity.HasOne<Spot>()
                 .WithMany()
                 .HasForeignKey(world => world.SpotId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<PortalCategory>()
+                .WithMany()
+                .HasForeignKey(world => world.PortalCategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.ToTable(table => table.HasCheckConstraint(
+                "CK_VRChatWorlds_ExactlyOneParent",
+                "(\"SpotId\" IS NOT NULL AND \"PortalCategoryId\" IS NULL) OR " +
+                "(\"SpotId\" IS NULL AND \"PortalCategoryId\" IS NOT NULL)"));
         });
 
         modelBuilder.Entity<PlaceInfo>(entity =>

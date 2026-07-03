@@ -12,4 +12,6 @@ public sealed record DiscordUser(
     bool IsGuildMember,
     bool IsAdmin,
     DateTimeOffset RegisteredAt,
-    DateTimeOffset LastSeenAt);
+    DateTimeOffset LastSeenAt,
+    string? VRChatDisplayName = null,
+    string? NormalizedVRChatDisplayName = null);

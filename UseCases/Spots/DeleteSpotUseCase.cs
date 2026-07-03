@@ -1,5 +1,6 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Spots;
 
@@ -15,7 +16,9 @@ namespace VrcWebMap.Backend.UseCases.Spots;
 /// <summary>
 /// スポットを削除するユースケースです。
 /// </summary>
-public sealed class DeleteSpotUseCase(ISpotRepository spots)
+public sealed class DeleteSpotUseCase(
+    ISpotRepository spots,
+    ICurrentActorAccessor currentActor)
     : IUseCase<DeleteSpot.Request, DeleteSpot.Response>
 {
     /// <summary>
@@ -28,13 +31,19 @@ public sealed class DeleteSpotUseCase(ISpotRepository spots)
         DeleteSpot.Request request,
         CancellationToken cancellationToken = default)
     {
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<DeleteSpot.Response>.Failure(actorError));
+        }
+
         if (!spots.TryGet(request.Id, out var spot))
         {
             var error = new KawaError(KawaErrorKind.NotFound, "スポットが見つかりません。");
             return Task.FromResult(KawaResult<DeleteSpot.Response>.Failure(error));
         }
 
-        if (!SpotAuthorization.CanDelete(request.ActorIsAdmin))
+        if (!SpotAuthorization.CanDelete(actor!.IsAdmin))
         {
             var error = new KawaError(KawaErrorKind.Forbidden, "スポットを削除する権限がありません。");
             return Task.FromResult(KawaResult<DeleteSpot.Response>.Failure(error));

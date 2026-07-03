@@ -4,6 +4,7 @@ using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
 using VrcWebMap.Backend.Tests.TestDoubles;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.Tests.UseCases.Spots;
 
@@ -12,11 +13,9 @@ public sealed class KmlImportUseCaseTests
     [Fact]
     public async Task Preview_KmlPoint_ReturnsCandidateWithLongitudeLatitudeOrder()
     {
-        var useCase = new PreviewKmlImportUseCase();
+        var useCase = CreatePreviewUseCase(isAdmin: true);
 
         var result = await useCase.ExecuteAsync(new PreviewKmlImport.Request(
-            "admin-user",
-            ActorIsAdmin: true,
             "spots.kml",
             ToBase64(SampleKml()),
             AreaCodes.Japan.Tokyo));
@@ -32,11 +31,9 @@ public sealed class KmlImportUseCaseTests
     [Fact]
     public async Task Preview_NonAdmin_ReturnsForbidden()
     {
-        var useCase = new PreviewKmlImportUseCase();
+        var useCase = CreatePreviewUseCase(isAdmin: false);
 
         var result = await useCase.ExecuteAsync(new PreviewKmlImport.Request(
-            "general-user",
-            ActorIsAdmin: false,
             "spots.kml",
             ToBase64(SampleKml()),
             AreaCodes.Japan.Tokyo));
@@ -50,33 +47,34 @@ public sealed class KmlImportUseCaseTests
     public async Task Import_Admin_CreatesSpots()
     {
         var repository = new FakeSpotRepository();
-        var useCase = new ImportKmlSpotsUseCase(repository);
+        var useCase = new ImportKmlSpotsUseCase(
+            repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("admin-user", "Admin"),
+            Writer("admin-user", isAdmin: true));
 
         var result = await useCase.ExecuteAsync(new ImportKmlSpots.Request(
-            "admin-user",
-            ActorIsAdmin: true,
             "spots.kml",
             ToBase64(SampleKml()),
             AreaCodes.Japan.Tokyo));
 
         Assert.True(result.IsSuccess);
         var spot = Assert.Single(result.Value!.Spots);
-        Assert.Equal("admin-user", spot.RegisteredByUserId);
+        Assert.Equal("Admin", spot.RegisteredByDisplayName);
+        Assert.True(spot.CanEdit);
         Assert.Equal("井の頭公園駅", spot.Name);
         Assert.Equal(35.697484, spot.Latitude);
         Assert.Equal(139.582739, spot.Longitude);
         Assert.Equal(AreaCodes.Japan.Tokyo, spot.AreaCode);
         Assert.True(repository.Exists(spot.Id));
+        Assert.Equal("admin-user", Assert.Single(repository.SavedSpots).RegisteredByUserId);
     }
 
     [Fact]
     public async Task Preview_UnsupportedPolygon_ReportsUnsupportedCount()
     {
-        var useCase = new PreviewKmlImportUseCase();
+        var useCase = CreatePreviewUseCase(isAdmin: true);
 
         var result = await useCase.ExecuteAsync(new PreviewKmlImport.Request(
-            "admin-user",
-            ActorIsAdmin: true,
             "polygon.kml",
             ToBase64("""
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -99,11 +97,9 @@ public sealed class KmlImportUseCaseTests
     [Fact]
     public async Task Preview_MoreThanOldLimit_ReturnsAllPointPlacemarks()
     {
-        var useCase = new PreviewKmlImportUseCase();
+        var useCase = CreatePreviewUseCase(isAdmin: true);
 
         var result = await useCase.ExecuteAsync(new PreviewKmlImport.Request(
-            "admin-user",
-            ActorIsAdmin: true,
             "many-spots.kml",
             ToBase64(ManyPointPlacemarksKml(498)),
             AreaCodes.Japan.Tokyo));
@@ -112,6 +108,12 @@ public sealed class KmlImportUseCaseTests
         Assert.Equal(498, result.Value!.Items.Length);
         Assert.DoesNotContain(result.Value.Warnings, warning => warning.Contains("先頭", StringComparison.Ordinal));
     }
+
+    private static PreviewKmlImportUseCase CreatePreviewUseCase(bool isAdmin) =>
+        new(Writer(isAdmin ? "admin-user" : "general-user", isAdmin));
+
+    private static FakeCurrentActorAccessor Writer(string userId, bool isAdmin) =>
+        new(new CurrentActor(userId, isAdmin, HasVRChatDisplayName: true));
 
     private static string SampleKml() =>
         """

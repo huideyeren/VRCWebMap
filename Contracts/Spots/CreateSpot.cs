@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.Spots;
 
 /// <summary>
@@ -10,14 +8,12 @@ public static class CreateSpot
     /// <summary>
     /// スポット作成に必要な入力です。
     /// </summary>
-    /// <param name="RegisteredByUserId">このスポットを登録するユーザーの ID です。</param>
     /// <param name="Name">スポット名です。</param>
     /// <param name="Latitude">スポットの緯度です。</param>
     /// <param name="Longitude">スポットの経度です。</param>
     /// <param name="AreaCode">都道府県コードまたは地域コードです。</param>
     /// <param name="Description">Markdown を想定したスポット説明です。</param>
     public sealed record Request(
-        string RegisteredByUserId,
         string Name,
         double Latitude,
         double Longitude,
@@ -28,5 +24,5 @@ public static class CreateSpot
     /// 作成されたスポットを返すレスポンスです。
     /// </summary>
     /// <param name="Spot">作成されたスポットです。</param>
-    public sealed record Response(Spot Spot);
+    public sealed record Response(SpotData Spot);
 }

@@ -10,9 +10,28 @@ namespace VrcWebMap.Backend.Stores;
 /// </summary>
 public sealed class PostgreSqlDiscordUserRepository(AppDbContext db) : IDiscordUserRepository
 {
+    public DiscordUser[] List() =>
+        db.DiscordUsers
+            .AsNoTracking()
+            .OrderBy(user => user.VRChatDisplayName == null)
+            .ThenBy(user => user.NormalizedVRChatDisplayName)
+            .ThenBy(user => user.Username)
+            .ToArray();
+
     public bool TryGetByDiscordUserId(string discordUserId, [NotNullWhen(true)] out DiscordUser? user)
     {
         user = db.DiscordUsers.AsNoTracking().FirstOrDefault(candidate => candidate.DiscordUserId == discordUserId);
+        return user is not null;
+    }
+
+    public bool TryGetByNormalizedVRChatDisplayName(
+        string normalizedVRChatDisplayName,
+        [NotNullWhen(true)] out DiscordUser? user)
+    {
+        user = db.DiscordUsers
+            .AsNoTracking()
+            .FirstOrDefault(candidate =>
+                candidate.NormalizedVRChatDisplayName == normalizedVRChatDisplayName);
         return user is not null;
     }
 

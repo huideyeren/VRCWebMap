@@ -1,4 +1,7 @@
-using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.Contracts.Comments;
+using VrcWebMap.Backend.Contracts.PlaceInfos;
+using VrcWebMap.Backend.Contracts.VRChatWorlds;
+using VrcWebMap.Backend.Contracts.WebLinks;
 
 namespace VrcWebMap.Backend.Contracts.Spots;
 
@@ -22,9 +25,9 @@ public static class GetSpot
     /// <param name="WebLinks">スポットに紐づく Web サイト情報です。</param>
     /// <param name="Comments">スポットに紐づくコメントです。</param>
     public sealed record Response(
-        Spot Spot,
-        VRChatWorld[] VRChatWorlds,
-        PlaceInfo[] PlaceInfos,
-        WebLink[] WebLinks,
-        Comment[] Comments);
+        SpotData Spot,
+        VRChatWorldData[] VRChatWorlds,
+        PlaceInfoData[] PlaceInfos,
+        WebLinkData[] WebLinks,
+        CommentData[] Comments);
 }

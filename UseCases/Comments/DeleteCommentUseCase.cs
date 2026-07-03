@@ -1,6 +1,7 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Comments;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Comments;
 
@@ -12,17 +13,25 @@ namespace VrcWebMap.Backend.UseCases.Comments;
     Tags = new[] { "Comments" })]
 [KawaErrorResponse(KawaErrorKind.NotFound, Description = "コメントが見つかりません。")]
 [KawaErrorResponse(KawaErrorKind.Forbidden, Description = "コメントを削除する権限がありません。")]
-public sealed class DeleteCommentUseCase(ISpotRepository spots)
+public sealed class DeleteCommentUseCase(
+    ISpotRepository spots,
+    ICurrentActorAccessor currentActor)
     : IUseCase<DeleteComment.Request, DeleteComment.Response>
 {
     public Task<KawaResult<DeleteComment.Response>> ExecuteAsync(DeleteComment.Request request, CancellationToken cancellationToken = default)
     {
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<DeleteComment.Response>.Failure(actorError));
+        }
+
         if (!spots.TryGetComment(request.Id, out var existing))
         {
             return Task.FromResult(KawaResult<DeleteComment.Response>.Failure(new KawaError(KawaErrorKind.NotFound, "コメントが見つかりません。")));
         }
 
-        if (!SpotAuthorization.CanDelete(request.ActorIsAdmin))
+        if (!SpotAuthorization.CanDelete(actor!.IsAdmin))
         {
             return Task.FromResult(KawaResult<DeleteComment.Response>.Failure(new KawaError(KawaErrorKind.Forbidden, "コメントを削除する権限がありません。")));
         }

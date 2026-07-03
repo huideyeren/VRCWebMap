@@ -1,6 +1,8 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.Spots;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.Spots;
 
@@ -13,7 +15,10 @@ namespace VrcWebMap.Backend.UseCases.Spots;
 /// <summary>
 /// スポット一覧を取得するユースケースです。
 /// </summary>
-public sealed class ListSpotsUseCase(ISpotRepository spots)
+public sealed class ListSpotsUseCase(
+    ISpotRepository spots,
+    IDiscordUserRepository users,
+    ICurrentActorAccessor currentActor)
     : IUseCase<ListSpots.Request, ListSpots.Response>
 {
     /// <summary>
@@ -31,8 +36,22 @@ public sealed class ListSpotsUseCase(ISpotRepository spots)
         var listedSpots = terms.Length == 0
             ? allSpots
             : allSpots.Where(spot => MatchesAllTerms(spot, terms)).ToArray();
+        var worldSpotIds = spots.ListWorlds()
+            .Where(world => world.SpotId.HasValue)
+            .Select(world => world.SpotId!.Value)
+            .ToHashSet();
+        var placeInfoSpotIds = spots.ListPlaceInfos()
+            .Select(placeInfo => placeInfo.SpotId)
+            .ToHashSet();
+        var mapper = new PublicResourceMapper(users.List(), currentActor.GetCurrent());
+        var items = listedSpots
+            .Select(spot => mapper.ToSpot(
+                spot,
+                worldSpotIds.Contains(spot.Id),
+                placeInfoSpotIds.Contains(spot.Id)))
+            .ToArray();
 
-        var response = new ListSpots.Response(listedSpots);
+        var response = new ListSpots.Response(items);
         return Task.FromResult(KawaResult<ListSpots.Response>.Success(response));
     }
 

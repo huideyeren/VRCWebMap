@@ -1,7 +1,9 @@
 using Kawa.Abstractions;
 using VrcWebMap.Backend.Contracts.PlaceInfos;
 using VrcWebMap.Backend.Models;
+using VrcWebMap.Backend.UseCases.Resources;
 using VrcWebMap.Backend.UseCases.Spots;
+using VrcWebMap.Backend.UseCases.Users;
 
 namespace VrcWebMap.Backend.UseCases.PlaceInfos;
 
@@ -16,7 +18,10 @@ namespace VrcWebMap.Backend.UseCases.PlaceInfos;
 /// <summary>
 /// スポットに場所情報を追加するユースケースです。
 /// </summary>
-public sealed class CreatePlaceInfoUseCase(ISpotRepository spots)
+public sealed class CreatePlaceInfoUseCase(
+    ISpotRepository spots,
+    IDiscordUserRepository users,
+    ICurrentActorAccessor currentActor)
     : IUseCase<CreatePlaceInfo.Request, CreatePlaceInfo.Response>
 {
     /// <summary>
@@ -26,6 +31,12 @@ public sealed class CreatePlaceInfoUseCase(ISpotRepository spots)
         CreatePlaceInfo.Request request,
         CancellationToken cancellationToken = default)
     {
+        var actorError = CurrentActorPolicy.RequireWriter(currentActor, out var actor);
+        if (actorError is not null)
+        {
+            return Task.FromResult(KawaResult<CreatePlaceInfo.Response>.Failure(actorError));
+        }
+
         if (request.SpotId == Guid.Empty)
         {
             var error = new KawaError(KawaErrorKind.Validation, "スポット ID は必須です。");
@@ -38,26 +49,26 @@ public sealed class CreatePlaceInfoUseCase(ISpotRepository spots)
             return Task.FromResult(KawaResult<CreatePlaceInfo.Response>.Failure(error));
         }
 
-        if (string.IsNullOrWhiteSpace(request.RegisteredByUserId) ||
-            string.IsNullOrWhiteSpace(request.Name) ||
+        if (string.IsNullOrWhiteSpace(request.Name) ||
             string.IsNullOrWhiteSpace(request.Address) ||
             string.IsNullOrWhiteSpace(request.BusinessInformation))
         {
-            var error = new KawaError(KawaErrorKind.Validation, "登録者 ID、場所名、所在地、営業情報は必須です。");
+            var error = new KawaError(KawaErrorKind.Validation, "場所名、所在地、営業情報は必須です。");
             return Task.FromResult(KawaResult<CreatePlaceInfo.Response>.Failure(error));
         }
 
         var placeInfo = new PlaceInfo(
             Guid.NewGuid(),
             request.SpotId,
-            request.RegisteredByUserId.Trim(),
+            actor!.DiscordUserId,
             request.Name.Trim(),
             request.Address.Trim(),
             request.BusinessInformation.Trim());
 
         spots.UpsertPlaceInfo(placeInfo);
 
-        var response = new CreatePlaceInfo.Response(placeInfo);
+        var mapper = new PublicResourceMapper(users.List(), actor);
+        var response = new CreatePlaceInfo.Response(mapper.ToPlaceInfo(placeInfo));
         return Task.FromResult(KawaResult<CreatePlaceInfo.Response>.Success(response));
     }
 }

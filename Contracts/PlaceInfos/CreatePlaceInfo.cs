@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.PlaceInfos;
 
 /// <summary>
@@ -11,13 +9,11 @@ public static class CreatePlaceInfo
     /// 場所情報の登録入力です。
     /// </summary>
     /// <param name="SpotId">場所情報を追加するスポットの ID です。</param>
-    /// <param name="RegisteredByUserId">この場所情報を登録するユーザーの ID です。</param>
     /// <param name="Name">場所名です。</param>
     /// <param name="Address">所在地です。</param>
     /// <param name="BusinessInformation">営業時間、昼夜営業、定休日、臨時休業などを自由に記述できる Markdown 対応テキストです。</param>
     public sealed record Request(
         Guid SpotId,
-        string RegisteredByUserId,
         string Name,
         string Address,
         string BusinessInformation);
@@ -26,5 +22,5 @@ public static class CreatePlaceInfo
     /// 登録された場所情報を返すレスポンスです。
     /// </summary>
     /// <param name="PlaceInfo">登録された場所情報です。</param>
-    public sealed record Response(PlaceInfo PlaceInfo);
+    public sealed record Response(PlaceInfoData PlaceInfo);
 }

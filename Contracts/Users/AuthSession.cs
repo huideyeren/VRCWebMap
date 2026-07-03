@@ -11,11 +11,15 @@ public static class AuthSession
     /// <param name="DiscordUserId">Discord ユーザー ID です。</param>
     /// <param name="Username">Discord のユーザー名です。</param>
     /// <param name="DisplayName">Discord の表示名です。</param>
+    /// <param name="VRChatDisplayName">手動登録されたVRChat表示名です。</param>
+    /// <param name="HasVRChatDisplayName">書き込みに必要なVRChat表示名を登録済みの場合は <c>true</c> です。</param>
     /// <param name="IsAdmin">アプリケーション管理者として扱う場合は <c>true</c> です。</param>
     public sealed record CurrentUserResponse(
         string DiscordUserId,
         string Username,
         string? DisplayName,
+        string? VRChatDisplayName,
+        bool HasVRChatDisplayName,
         bool IsAdmin);
 
     /// <summary>

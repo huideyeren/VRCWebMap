@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.VRChatWorlds;
 
 /// <summary>
@@ -11,7 +9,6 @@ public static class CreateVRChatWorld
     /// VRChat ワールド情報の登録入力です。
     /// </summary>
     /// <param name="SpotId">VRChat ワールド情報を追加するスポットの ID です。</param>
-    /// <param name="RegisteredByUserId">このワールド情報を登録するユーザーの ID です。</param>
     /// <param name="VRChatWorldId">VRChat 側の world ID です。</param>
     /// <param name="Name">VRChat ワールド名です。</param>
     /// <param name="RecommendedCapacity">推奨収容人数です。</param>
@@ -20,10 +17,9 @@ public static class CreateVRChatWorld
     /// <param name="PC">PC 対応の場合は <c>true</c> です。</param>
     /// <param name="Android">Android 対応の場合は <c>true</c> です。</param>
     /// <param name="IOS">iOS 対応の場合は <c>true</c> です。</param>
-    /// <param name="IsPrivate">private ワールドとしてポータル JSON に出力する場合は <c>true</c> です。</param>
+    /// <param name="IsPrivate">VRChat 上の release status が private の場合は <c>true</c> です。</param>
     public sealed record Request(
         Guid SpotId,
-        string RegisteredByUserId,
         string VRChatWorldId,
         string Name,
         int RecommendedCapacity,
@@ -38,5 +34,5 @@ public static class CreateVRChatWorld
     /// 登録された VRChat ワールド情報を返すレスポンスです。
     /// </summary>
     /// <param name="World">登録された VRChat ワールド情報です。</param>
-    public sealed record Response(VRChatWorld World);
+    public sealed record Response(VRChatWorldData World);
 }

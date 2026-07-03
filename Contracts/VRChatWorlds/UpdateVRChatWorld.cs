@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.VRChatWorlds;
 
 /// <summary>
@@ -11,8 +9,6 @@ public static class UpdateVRChatWorld
     /// VRChat ワールド情報更新に必要な入力です。
     /// </summary>
     /// <param name="Id">更新する VRChat ワールド情報の ID です。</param>
-    /// <param name="ActorUserId">更新操作を行うユーザーの ID です。</param>
-    /// <param name="ActorIsAdmin">更新操作を行うユーザーが管理者かどうかです。</param>
     /// <param name="VRChatWorldId">更新後の VRChat world ID です。</param>
     /// <param name="Name">更新後の VRChat ワールド名です。</param>
     /// <param name="RecommendedCapacity">更新後の推奨収容人数です。</param>
@@ -21,11 +17,9 @@ public static class UpdateVRChatWorld
     /// <param name="PC">PC 対応の場合は <c>true</c> です。</param>
     /// <param name="Android">Android 対応の場合は <c>true</c> です。</param>
     /// <param name="IOS">iOS 対応の場合は <c>true</c> です。</param>
-    /// <param name="IsPrivate">private ワールドとしてポータル JSON に出力する場合は <c>true</c> です。</param>
+    /// <param name="IsPrivate">VRChat 上の release status が private の場合は <c>true</c> です。</param>
     public sealed record Request(
         Guid Id,
-        string ActorUserId,
-        bool ActorIsAdmin,
         string VRChatWorldId,
         string Name,
         int RecommendedCapacity,
@@ -40,5 +34,5 @@ public static class UpdateVRChatWorld
     /// 更新された VRChat ワールド情報を返すレスポンスです。
     /// </summary>
     /// <param name="World">更新された VRChat ワールド情報です。</param>
-    public sealed record Response(VRChatWorld World);
+    public sealed record Response(VRChatWorldData World);
 }

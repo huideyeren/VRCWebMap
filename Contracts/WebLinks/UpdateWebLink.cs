@@ -1,5 +1,3 @@
-using VrcWebMap.Backend.Models;
-
 namespace VrcWebMap.Backend.Contracts.WebLinks;
 
 /// <summary>
@@ -11,14 +9,10 @@ public static class UpdateWebLink
     /// Web サイト情報更新に必要な入力です。
     /// </summary>
     /// <param name="Id">更新する Web サイト情報の ID です。</param>
-    /// <param name="ActorUserId">更新操作を行うユーザーの ID です。</param>
-    /// <param name="ActorIsAdmin">更新操作を行うユーザーが管理者かどうかです。</param>
     /// <param name="SiteName">更新後のサイト名です。</param>
     /// <param name="Url">更新後の URL です。</param>
     public sealed record Request(
         Guid Id,
-        string ActorUserId,
-        bool ActorIsAdmin,
         string SiteName,
         Uri Url);
 
@@ -26,5 +20,5 @@ public static class UpdateWebLink
     /// 更新された Web サイト情報を返すレスポンスです。
     /// </summary>
     /// <param name="WebLink">更新された Web サイト情報です。</param>
-    public sealed record Response(WebLink WebLink);
+    public sealed record Response(WebLinkData WebLink);
 }

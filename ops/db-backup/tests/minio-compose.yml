@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: vrcwebmap
+      POSTGRES_USER: vrcwebmap
+      POSTGRES_PASSWORD: integration-password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vrcwebmap -d vrcwebmap"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+
+  minio-client:
+    image: minio/mc:latest
+    entrypoint: ["mc"]
+    volumes:
+      - minio-client-config:/root/.mc
+
+  db-backup:
+    image: vrcwebmap-db-backup:test
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: vrcwebmap
+      PGUSER: vrcwebmap
+      PGPASSWORD: integration-password
+      S3_BUCKET: vrcwebmap-backups
+      S3_PREFIX: backups
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ADDRESSING_STYLE: path
+      ALLOW_INSECURE_S3_ENDPOINT: "true"
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      BACKUP_RETENTION_COUNT: 4
+    volumes:
+      - backup-work:/backup-work
+
+volumes:
+  backup-work:
+  minio-client-config:

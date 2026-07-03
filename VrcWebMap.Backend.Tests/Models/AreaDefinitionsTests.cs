@@ -65,4 +65,19 @@ public sealed class AreaDefinitionsTests
             AreaDefinitions.All,
             area => area is { AreaCode: AreaCodes.Overseas.Europe, AreaName: "ヨーロッパ", Category: AreaCategory.Europe });
     }
+
+    [Fact]
+    public void CategoryDisplayNames_DefinesExpectedNamesAndOrder()
+    {
+        Assert.Equal("中部", AreaCategoryDisplayNames.Get(AreaCategory.Chubu));
+        Assert.Equal(
+            Enum.GetValues<AreaCategory>().Length,
+            AreaCategoryDisplayNames.All.Length);
+        Assert.True(
+            AreaCategoryDisplayNames.OrderOf(AreaCategory.Hokkaido) <
+            AreaCategoryDisplayNames.OrderOf(AreaCategory.Tohoku));
+        Assert.True(
+            AreaCategoryDisplayNames.OrderOf(AreaCategory.Kanto) <
+            AreaCategoryDisplayNames.OrderOf(AreaCategory.Chubu));
+    }
 }

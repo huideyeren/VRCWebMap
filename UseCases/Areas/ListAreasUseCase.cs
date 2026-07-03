@@ -26,7 +26,15 @@ public sealed class ListAreasUseCase
         ListAreas.Request request,
         CancellationToken cancellationToken = default)
     {
-        var response = new ListAreas.Response(AreaDefinitions.All);
+        var areas = AreaDefinitions.All
+            .Select(area => new ListAreas.Item(
+                area.AreaCode,
+                area.AreaName,
+                area.Category,
+                AreaCategoryDisplayNames.Get(area.Category),
+                AreaCategoryDisplayNames.OrderOf(area.Category)))
+            .ToArray();
+        var response = new ListAreas.Response(areas);
         return Task.FromResult(KawaResult<ListAreas.Response>.Success(response));
     }
 }
