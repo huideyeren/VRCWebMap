@@ -1,5 +1,7 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Unicode;
 using VrcWebMap.Backend.Contracts.Portal;
 
 namespace VrcWebMap.Backend.UseCases.Portal;
@@ -9,6 +11,13 @@ namespace VrcWebMap.Backend.UseCases.Portal;
 /// </summary>
 public static class WorldDataJsonMerger
 {
+    private static readonly JsonSerializerOptions OutputJsonOptions = new()
+    {
+        WriteIndented = true,
+        // WPPLSへ渡すUTF-8 JSONを人が読める状態にしつつ、JSONとして必要な文字はencoderに保護させます。
+        Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)
+    };
+
     public static MergeResult Merge(
         string existingJson,
         GetWorldData.Response systemData)
@@ -63,7 +72,7 @@ public static class WorldDataJsonMerger
             // WPPLS側で非公開releaseのワールドも扱える方針は、マージ元に左右されません。
             root["ShowPrivateWorld"] = true;
             return MergeResult.Success(
-                root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                root.ToJsonString(OutputJsonOptions));
         }
         catch (JsonException)
         {

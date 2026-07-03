@@ -69,6 +69,20 @@ public sealed class WorldDataJsonMergerTests
         Assert.Null(JsonNode.Parse(result.Json!)!["Roles"]);
     }
 
+    [Fact]
+    public void Merge_WritesUnicodeCharactersWithoutEscaping()
+    {
+        var result = WorldDataJsonMerger.Merge(
+            """{"Categorys":[{"Category":"既存","Worlds":[]}]}""",
+            SystemData("追加"));
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+        Assert.Contains("\"Category\": \"既存\"", result.Json, StringComparison.Ordinal);
+        Assert.Contains("\"Category\": \"追加\"", result.Json, StringComparison.Ordinal);
+        Assert.DoesNotContain(@"\u65E2", result.Json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(@"\u8FFD", result.Json, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Theory]
     [InlineData("""{"Categorys":[{"Category":" duplicate ","Worlds":[]}]}""")]
     [InlineData("""{"Categorys":[],"Roles":[{"RoleName":"Owner","DisplayNames":["Different"]}]}""")]
