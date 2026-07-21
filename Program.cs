@@ -36,6 +36,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
 });
 builder.Services.Configure<DiscordOptions>(builder.Configuration.GetSection("Discord"));
+builder.Services.Configure<AppOptions>(builder.Configuration.GetSection("App"));
+builder.Services.AddSingleton(provider => provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AppOptions>>().Value);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentActorAccessor, HttpCurrentActorAccessor>();
 builder.Services.AddHttpClient<DiscordApiClient>();
@@ -198,6 +200,7 @@ static void AddUseCases(IServiceCollection services)
     services.AddScoped<IUseCase<UpdatePlaceInfo.Request, UpdatePlaceInfo.Response>, UpdatePlaceInfoUseCase>();
     services.AddScoped<IUseCase<CreateSpot.Request, CreateSpot.Response>, CreateSpotUseCase>();
     services.AddScoped<IUseCase<DeleteSpot.Request, DeleteSpot.Response>, DeleteSpotUseCase>();
+    services.AddScoped<IUseCase<ExportKmlSpots.Request, ExportKmlSpots.Response>, ExportKmlSpotsUseCase>();
     services.AddScoped<IUseCase<GetSpot.Request, GetSpot.Response>, GetSpotUseCase>();
     services.AddScoped<IUseCase<ImportKmlSpots.Request, ImportKmlSpots.Response>, ImportKmlSpotsUseCase>();
     services.AddScoped<IUseCase<ListSpots.Request, ListSpots.Response>, ListSpotsUseCase>();
