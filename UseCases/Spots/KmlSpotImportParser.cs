@@ -135,6 +135,7 @@ internal static partial class KmlSpotImportParser
         var items = new List<PreviewKmlImport.KmlImportSpotCandidate>();
         var unsupportedPlacemarkCount = 0;
 
+        var sourceIndex = 0;
         foreach (var placemark in document.Descendants().Where(element => element.Name.LocalName == "Placemark"))
         {
             if (items.Count >= MaxPlacemarkCount)
@@ -190,11 +191,14 @@ internal static partial class KmlSpotImportParser
             }
 
             items.Add(new PreviewKmlImport.KmlImportSpotCandidate(
+                sourceIndex++,
                 name,
                 description,
                 latitude,
                 longitude,
                 defaultAreaCode,
+                IsSelectedByDefault: true,
+                NearbySpots: [],
                 candidateWarnings.ToArray()));
         }
 

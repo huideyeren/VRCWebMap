@@ -51,6 +51,8 @@ namespace VrcWebMap.Backend.Serialization;
 [JsonSerializable(typeof(PreviewKmlImport.Response), TypeInfoPropertyName = "PreviewKmlImportResponse")]
 [JsonSerializable(typeof(PreviewKmlImport.KmlImportSpotCandidate), TypeInfoPropertyName = "PreviewKmlImportKmlImportSpotCandidate")]
 [JsonSerializable(typeof(PreviewKmlImport.KmlImportSpotCandidate[]), TypeInfoPropertyName = "PreviewKmlImportKmlImportSpotCandidateArray")]
+[JsonSerializable(typeof(PreviewKmlImport.NearbySpot), TypeInfoPropertyName = "PreviewKmlImportNearbySpot")]
+[JsonSerializable(typeof(PreviewKmlImport.NearbySpot[]), TypeInfoPropertyName = "PreviewKmlImportNearbySpotArray")]
 [JsonSerializable(typeof(ImportKmlSpots.Request), TypeInfoPropertyName = "ImportKmlSpotsRequest")]
 [JsonSerializable(typeof(ImportKmlSpots.Response), TypeInfoPropertyName = "ImportKmlSpotsResponse")]
 [JsonSerializable(typeof(UpdateSpot.Request), TypeInfoPropertyName = "UpdateSpotRequest")]

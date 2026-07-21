@@ -11,6 +11,46 @@ namespace VrcWebMap.Backend.Tests.UseCases.Spots;
 public sealed class KmlImportUseCaseTests
 {
     [Fact]
+    public void FindNearDuplicates_AtExactlyFiftyMeters_ReturnsExistingSpot()
+    {
+        var candidate = new PreviewKmlImport.KmlImportSpotCandidate(
+            SourceIndex: 0,
+            Name: "候補",
+            Description: "説明",
+            Latitude: 35.681236,
+            Longitude: 139.767125,
+            AreaCode: AreaCodes.Japan.Tokyo,
+            IsSelectedByDefault: true,
+            NearbySpots: [],
+            Warnings: []);
+        var existing = SpotAtDistance(candidate.Latitude, candidate.Longitude, 50.0);
+
+        var matches = KmlSpotDuplicateMatcher.FindNearDuplicates(candidate, [existing]);
+
+        var match = Assert.Single(matches);
+        Assert.Equal(existing.Id, match.Id);
+        Assert.InRange(match.DistanceMeters, 49.99, 50.01);
+    }
+
+    [Fact]
+    public void FindNearDuplicates_BeyondFiftyMeters_ReturnsNoSpot()
+    {
+        var candidate = new PreviewKmlImport.KmlImportSpotCandidate(
+            SourceIndex: 0,
+            Name: "候補",
+            Description: "説明",
+            Latitude: 35.681236,
+            Longitude: 139.767125,
+            AreaCode: AreaCodes.Japan.Tokyo,
+            IsSelectedByDefault: true,
+            NearbySpots: [],
+            Warnings: []);
+        var existing = SpotAtDistance(candidate.Latitude, candidate.Longitude, 50.1);
+
+        Assert.Empty(KmlSpotDuplicateMatcher.FindNearDuplicates(candidate, [existing]));
+    }
+
+    [Fact]
     public async Task Preview_KmlPoint_ReturnsCandidateWithLongitudeLatitudeOrder()
     {
         var useCase = CreatePreviewUseCase(isAdmin: true);
@@ -164,4 +204,18 @@ public sealed class KmlImportUseCaseTests
 
     private static string ToBase64(string value) =>
         Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
+
+    private static Spot SpotAtDistance(double latitude, double longitude, double meters)
+    {
+        // A northward move keeps the test's expected surface distance independent of longitude.
+        var latitudeOffset = meters / 6_371_008.8 * 180 / Math.PI;
+        return new Spot(
+            Guid.NewGuid(),
+            "existing-user",
+            "既存 Spot",
+            latitude + latitudeOffset,
+            longitude,
+            AreaCodes.Japan.Tokyo,
+            "既存 Spot の説明");
+    }
 }
