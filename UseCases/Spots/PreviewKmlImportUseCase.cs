@@ -11,11 +11,13 @@ namespace VrcWebMap.Backend.UseCases.Spots;
     Version = "v1",
     Tags = new[] { "Spot Management" })]
 [KawaErrorResponse(KawaErrorKind.Validation, Description = "KML/KMZ の入力値が不正です。")]
-[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "管理者のみ KML/KMZ import preview を実行できます。")]
+[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "VRChat表示名を登録したログインユーザーのみ KML/KMZ import preview を実行できます。")]
 /// <summary>
 /// KML/KMZ import 候補を preview するユースケースです。
 /// </summary>
-public sealed class PreviewKmlImportUseCase(ICurrentActorAccessor currentActor)
+public sealed class PreviewKmlImportUseCase(
+    ISpotRepository spots,
+    ICurrentActorAccessor currentActor)
     : IUseCase<PreviewKmlImport.Request, PreviewKmlImport.Response>
 {
     public Task<KawaResult<PreviewKmlImport.Response>> ExecuteAsync(
@@ -28,12 +30,6 @@ public sealed class PreviewKmlImportUseCase(ICurrentActorAccessor currentActor)
             return Task.FromResult(KawaResult<PreviewKmlImport.Response>.Failure(actorError));
         }
 
-        if (!actor!.IsAdmin)
-        {
-            return Task.FromResult(KawaResult<PreviewKmlImport.Response>.Failure(
-                new KawaError(KawaErrorKind.Forbidden, "KML/KMZ import preview は管理者のみ実行できます。")));
-        }
-
         var parseResult = KmlSpotImportParser.Parse(request.FileName, request.ContentBase64, request.DefaultAreaCode);
         if (parseResult.ErrorMessage is not null)
         {
@@ -41,8 +37,20 @@ public sealed class PreviewKmlImportUseCase(ICurrentActorAccessor currentActor)
                 new KawaError(KawaErrorKind.Validation, parseResult.ErrorMessage)));
         }
 
+        var existingSpots = spots.List();
+        var items = parseResult.Items
+            .Select(item =>
+            {
+                var nearbySpots = KmlSpotDuplicateMatcher.FindNearDuplicates(item, existingSpots);
+                return item with
+                {
+                    NearbySpots = nearbySpots,
+                    IsSelectedByDefault = nearbySpots.Length == 0
+                };
+            })
+            .ToArray();
         var response = new PreviewKmlImport.Response(
-            parseResult.Items,
+            items,
             parseResult.Warnings,
             parseResult.UnsupportedPlacemarkCount);
         return Task.FromResult(KawaResult<PreviewKmlImport.Response>.Success(response));

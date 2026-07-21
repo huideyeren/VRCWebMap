@@ -51,6 +51,33 @@ public sealed class KmlImportUseCaseTests
     }
 
     [Fact]
+    public async Task Preview_Writer_AnnotatesNearbyCandidateAndDeselectsItByDefault()
+    {
+        var existing = new Spot(
+            Guid.NewGuid(),
+            "existing-user",
+            "既存 Spot",
+            35.697484,
+            139.582739,
+            AreaCodes.Japan.Tokyo,
+            "既存 Spot の説明");
+        var useCase = new PreviewKmlImportUseCase(
+            new FakeSpotRepository(existing),
+            Writer("general-user", isAdmin: false));
+
+        var result = await useCase.ExecuteAsync(new PreviewKmlImport.Request(
+            "spots.kml",
+            ToBase64(SampleKml()),
+            AreaCodes.Japan.Tokyo));
+
+        Assert.True(result.IsSuccess);
+        var item = Assert.Single(result.Value!.Items);
+        Assert.False(item.IsSelectedByDefault);
+        var nearby = Assert.Single(item.NearbySpots);
+        Assert.Equal(existing.Id, nearby.Id);
+    }
+
+    [Fact]
     public async Task Preview_KmlPoint_ReturnsCandidateWithLongitudeLatitudeOrder()
     {
         var useCase = CreatePreviewUseCase(isAdmin: true);
@@ -69,9 +96,11 @@ public sealed class KmlImportUseCaseTests
     }
 
     [Fact]
-    public async Task Preview_NonAdmin_ReturnsForbidden()
+    public async Task Preview_ActorWithoutVRChatDisplayName_ReturnsForbidden()
     {
-        var useCase = CreatePreviewUseCase(isAdmin: false);
+        var useCase = new PreviewKmlImportUseCase(
+            new FakeSpotRepository(),
+            new FakeCurrentActorAccessor(new CurrentActor("general-user", IsAdmin: false, HasVRChatDisplayName: false)));
 
         var result = await useCase.ExecuteAsync(new PreviewKmlImport.Request(
             "spots.kml",
@@ -150,7 +179,7 @@ public sealed class KmlImportUseCaseTests
     }
 
     private static PreviewKmlImportUseCase CreatePreviewUseCase(bool isAdmin) =>
-        new(Writer(isAdmin ? "admin-user" : "general-user", isAdmin));
+        new(new FakeSpotRepository(), Writer(isAdmin ? "admin-user" : "general-user", isAdmin));
 
     private static FakeCurrentActorAccessor Writer(string userId, bool isAdmin) =>
         new(new CurrentActor(userId, isAdmin, HasVRChatDisplayName: true));
