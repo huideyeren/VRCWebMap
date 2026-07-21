@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { toggleFormPanel, type FormPanel } from "./collapsible-panels";
 import { createSpotIcon, getCurrentPosition } from "./map-ui";
+import { GsiSeamlessPhotoUrl, JapanMapBounds, MapZoomOptions } from "./map-controls";
 import { getSpotCategoryKey, groupSpotsByArea } from "./spot-regions";
 
 type SelectSpotOptions = {
@@ -57,14 +58,25 @@ function App() {
         }
 
         const map = L.map(mapElementRef.current, {
-            zoomControl: false
+            zoomControl: false,
+            ...MapZoomOptions,
+            maxBounds: L.latLngBounds(JapanMapBounds.southWest, JapanMapBounds.northEast)
         }).setView(TokyoStation, 6);
 
-        L.control.zoom({ position: "bottomleft" }).addTo(map);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            maxZoom: 19,
-            attribution: "&copy; OpenStreetMap contributors"
-        }).addTo(map);
+        const baseLayers = {
+            "標準地図": L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                attribution: "&copy; OpenStreetMap contributors"
+            }),
+            "航空写真": L.tileLayer(GsiSeamlessPhotoUrl, {
+                maxZoom: 18,
+                attribution: "地理院タイル"
+            })
+        };
+        baseLayers["標準地図"].addTo(map);
+        L.control.layers(baseLayers, undefined, { position: "topright" }).addTo(map);
+        L.control.zoom({ position: "topright", zoomInText: "+", zoomOutText: "−" }).addTo(map);
+        L.control.scale({ position: "bottomright", imperial: false }).addTo(map);
 
         map.on("contextmenu", (event) => {
             if (!currentUserRef.current?.hasVRChatDisplayName) {
