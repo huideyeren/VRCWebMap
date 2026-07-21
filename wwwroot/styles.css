@@ -737,6 +737,36 @@ button.collapsible-form-heading:focus-visible {
     gap: 10px;
 }
 
+.kml-transfer-section {
+    display: grid;
+    gap: 10px;
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+}
+
+.kml-transfer-section h4 {
+    margin: 0;
+}
+
+.kml-export-list {
+    display: grid;
+    gap: 7px;
+    max-height: 240px;
+    overflow: auto;
+    padding: 2px;
+}
+
+.kml-choice,
+.kml-candidate {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+}
+
+.kml-candidate > span {
+    min-width: 0;
+}
+
 .warning-list {
     margin: 0;
     padding-left: 1.25em;

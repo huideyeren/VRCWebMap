@@ -202,6 +202,28 @@ public sealed class KmlImportUseCaseTests
     }
 
     [Fact]
+    public async Task Import_DuplicateConfirmationForCandidate_ReturnsValidation()
+    {
+        var useCase = new ImportKmlSpotsUseCase(
+            new FakeSpotRepository(),
+            FakeDiscordUserRepository.WithVRChatDisplayName("general-user", "General"),
+            Writer("general-user", isAdmin: false));
+
+        var result = await useCase.ExecuteAsync(new ImportKmlSpots.Request(
+            "spots.kml",
+            ToBase64(SampleKml()),
+            AreaCodes.Japan.Tokyo,
+            [0],
+            [
+                new ImportKmlSpots.NearDuplicateConfirmation(0, []),
+                new ImportKmlSpots.NearDuplicateConfirmation(0, [])
+            ]));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(KawaErrorKind.Validation, result.Error!.Kind);
+    }
+
+    [Fact]
     public async Task Preview_UnsupportedPolygon_ReportsUnsupportedCount()
     {
         var useCase = CreatePreviewUseCase(isAdmin: true);

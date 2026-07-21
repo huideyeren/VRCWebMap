@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
     AdminPanel,
-    KmlImportPanel,
     formatAreaName,
     getSpot,
     loadAreas,
@@ -135,8 +134,7 @@ function AdminApp() {
         ),
         React.createElement("nav", { className: "admin-tabs", "aria-label": "管理機能" },
             React.createElement(TabButton, { id: "spots", activeTab, onChange: setActiveTab }, `Spot管理 ${spots.length}`),
-            React.createElement(TabButton, { id: "users", activeTab, onChange: setActiveTab }, `ユーザー管理 ${users.length}`),
-            React.createElement(TabButton, { id: "kml", activeTab, onChange: setActiveTab }, "KMLインポート")
+            React.createElement(TabButton, { id: "users", activeTab, onChange: setActiveTab }, `ユーザー管理 ${users.length}`)
         ),
         message ? React.createElement("p", { className: "notice admin-notice", role: "status" }, message) : null,
         !currentUser.hasVRChatDisplayName
@@ -220,15 +218,7 @@ function AdminApp() {
             users,
             currentUser,
             onToggle: updateAdministrator
-        }) : null,
-        activeTab === "kml" ? React.createElement("main", { className: "admin-workspace narrow" },
-            React.createElement(KmlImportPanel, {
-                areas,
-                currentUser,
-                onImported: refreshSpots,
-                onMessage: setMessage
-            })
-        ) : null
+        }) : null
     );
 }
 

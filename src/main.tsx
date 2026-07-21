@@ -6,6 +6,7 @@ import { toggleFormPanel, type FormPanel } from "./collapsible-panels";
 import { createSpotIcon, getCurrentPosition } from "./map-ui";
 import { GsiSeamlessPhotoUrl, JapanMapBounds, MapZoomOptions } from "./map-controls";
 import { getSpotCategoryKey, groupSpotsByArea } from "./spot-regions";
+import { getConfirmations, getDefaultSelectedSourceIndexes } from "./kml-transfer";
 
 type SelectSpotOptions = {
     updateUrl?: boolean;
@@ -496,6 +497,19 @@ function App() {
                     areas,
                     isSaving,
                     onChange: setDraft,
+                    onUseMapCenter: () => {
+                        const center = mapRef.current?.getCenter();
+                        if (!center) {
+                            setMessage("地図の準備が完了してからお試しください。");
+                            return;
+                        }
+
+                        setDraft((current) => current && {
+                            ...current,
+                            latitude: roundCoordinate(center.lat),
+                            longitude: roundCoordinate(center.lng)
+                        });
+                    },
                     onSubmit: saveDraft,
                     onCancel: () => {
                         setDraft(null);
@@ -527,6 +541,13 @@ function App() {
                     selectedSpotId: selectedSpot?.id,
                     resetKey: submittedSearchQuery,
                     onSelect: selectSpot
+                }) : null,
+                screen !== "profile" && !draft && !selectedSpot ? React.createElement(KmlTransferPanel, {
+                    areas,
+                    spots,
+                    currentUser,
+                    onImported: refreshSpots,
+                    onMessage: setMessage
                 }) : null
             )
         )
@@ -551,12 +572,6 @@ function AdminScreen({ spots, selectedSpot, selectedDetails, areas, currentUser,
             React.createElement("button", { type: "button", className: "secondary", onClick: onBack }, "通常画面へ戻る"),
             React.createElement("button", { type: "button", className: "secondary", onClick: onReload }, "Spot を再読み込み")
         ),
-        React.createElement(KmlImportPanel, {
-            areas,
-            currentUser,
-            onImported: onReload,
-            onMessage
-        }),
         React.createElement("div", { className: "admin-card" },
             React.createElement("h4", null, "管理対象 Spot"),
             spots.length === 0
@@ -589,12 +604,15 @@ function AdminScreen({ spots, selectedSpot, selectedDetails, areas, currentUser,
     );
 }
 
-export function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
+export function KmlTransferPanel({ areas, spots, currentUser, onImported, onMessage }) {
     const [file, setFile] = useState(null);
     const [defaultAreaCode, setDefaultAreaCode] = useState(DefaultAreaCode);
     const [preview, setPreview] = useState(null);
+    const [selectedSourceIndexes, setSelectedSourceIndexes] = useState(() => new Set<number>());
+    const [selectedSpotIds, setSelectedSpotIds] = useState(() => new Set<string>());
     const [isPreviewing, setIsPreviewing] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     const candidateCount = preview?.items?.length ?? 0;
 
@@ -619,6 +637,7 @@ export function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
         try {
             const nextPreview = await previewKmlImport(await buildPayload());
             setPreview(nextPreview);
+            setSelectedSourceIndexes(new Set(getDefaultSelectedSourceIndexes(nextPreview.items ?? [])));
             onMessage(`${nextPreview.items?.length ?? 0} 件の Spot 候補を読み込みました。`);
         } catch (error) {
             onMessage(error.message);
@@ -632,9 +651,24 @@ export function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
         onMessage("");
 
         try {
-            const result = await importKmlSpots(await buildPayload());
+            const payload = await buildPayload();
+            const result = await importKmlSpots({
+                ...payload,
+                selectedSourceIndexes: [...selectedSourceIndexes],
+                confirmations: getConfirmations(preview?.items ?? [], selectedSourceIndexes)
+            });
+
+            if (result.reconfirmationRequiredItems?.length) {
+                const refreshedPreview = await previewKmlImport(payload);
+                setPreview(refreshedPreview);
+                setSelectedSourceIndexes(new Set());
+                onMessage("近くにSpotが追加されています。候補を確認し、必要なものだけもう一度選択してください。");
+                return;
+            }
+
             setPreview(null);
             setFile(null);
+            setSelectedSourceIndexes(new Set());
             await onImported();
             onMessage(`${result.spots?.length ?? 0} 件の Spot を import しました。`);
         } catch (error) {
@@ -644,9 +678,72 @@ export function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
         }
     }
 
-    return React.createElement("form", { className: "admin-card kml-import-panel", onSubmit: previewFile },
-        React.createElement("h4", null, "KML/KMZ import"),
-        React.createElement("p", { className: "meta" }, "Google My Maps などから export した KML/KMZ の Point Placemark を Spot 候補として読み込みます。座標は WGS84 の longitude,latitude として扱います。"),
+    function toggleCandidate(sourceIndex) {
+        setSelectedSourceIndexes((current) => {
+            const next = new Set(current);
+            if (next.has(sourceIndex)) {
+                next.delete(sourceIndex);
+            } else {
+                next.add(sourceIndex);
+            }
+            return next;
+        });
+    }
+
+    function toggleSpotForExport(spotId) {
+        setSelectedSpotIds((current) => {
+            const next = new Set(current);
+            if (next.has(spotId)) {
+                next.delete(spotId);
+            } else {
+                next.add(spotId);
+            }
+            return next;
+        });
+    }
+
+    async function exportSelected() {
+        if (selectedSpotIds.size === 0) {
+            onMessage("出力するSpotを選択してください。");
+            return;
+        }
+
+        setIsExporting(true);
+        onMessage("");
+        try {
+            const result = await exportKmlSpots({ spotIds: [...selectedSpotIds] });
+            downloadText(result.content, result.fileName, "application/vnd.google-earth.kml+xml");
+            onMessage(`${selectedSpotIds.size} 件の Spot をKMLとして出力しました。`);
+        } catch (error) {
+            onMessage(error.message);
+        } finally {
+            setIsExporting(false);
+        }
+    }
+
+    return React.createElement("section", { className: "admin-card kml-import-panel" },
+        React.createElement("h3", null, "KMLで移行・出力"),
+        React.createElement("p", { className: "meta" }, "Google My Maps とuMapで使えるKML形式です。OSMへ自動投稿はせず、必要なら出力したKMLをuMapなどで利用します。"),
+        React.createElement("section", { className: "kml-transfer-section" },
+            React.createElement("h4", null, "選択してKMLを出力"),
+            React.createElement("p", { className: "meta" }, "出力データには出典、登録者名、元Spotへのリンクを含めます。"),
+            spots.length === 0 ? React.createElement("p", { className: "meta" }, "出力できるSpotはまだありません。") : React.createElement("div", { className: "kml-export-list" }, spots.map((spot) =>
+                React.createElement("label", { key: spot.id, className: "kml-choice" },
+                    React.createElement("input", {
+                        type: "checkbox",
+                        checked: selectedSpotIds.has(spot.id),
+                        onChange: () => toggleSpotForExport(spot.id)
+                    }),
+                    `${spot.name} / ${formatAreaName(spot.areaCode, areas)}`
+                )
+            )),
+            React.createElement("div", { className: "actions" },
+                React.createElement("button", { type: "button", disabled: isExporting || selectedSpotIds.size === 0, onClick: exportSelected }, isExporting ? "出力中..." : `選択した ${selectedSpotIds.size} 件を出力`)
+            )
+        ),
+        currentUser?.hasVRChatDisplayName ? React.createElement("form", { className: "kml-transfer-section", onSubmit: previewFile },
+            React.createElement("h4", null, "KML/KMZをSpotとして取り込む"),
+            React.createElement("p", { className: "meta" }, "Point PlacemarkをSpot候補として読み込みます。既存Spotから50m以内の候補は、重複の可能性があるため初期状態では選択しません。"),
         React.createElement("label", null,
             "KML/KMZ ファイル",
             React.createElement("input", {
@@ -655,6 +752,7 @@ export function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
                 onChange: (event) => {
                     setFile(event.target.files?.[0] ?? null);
                     setPreview(null);
+                    setSelectedSourceIndexes(new Set());
                 }
             })
         ),
@@ -665,6 +763,7 @@ export function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
                 onChange: (event) => {
                     setDefaultAreaCode(Number(event.target.value));
                     setPreview(null);
+                    setSelectedSourceIndexes(new Set());
                 }
             } as React.SelectHTMLAttributes<HTMLSelectElement>,
                 areas.map((area) => React.createElement("option", { key: area.areaCode, value: area.areaCode }, area.areaName))
@@ -672,7 +771,7 @@ export function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
         ),
         React.createElement("div", { className: "actions" },
             React.createElement("button", { type: "submit", disabled: isPreviewing || isImporting }, isPreviewing ? "解析中..." : "Preview"),
-            React.createElement("button", { type: "button", className: "secondary", onClick: importFile, disabled: isPreviewing || isImporting || candidateCount === 0 }, isImporting ? "Import 中..." : "Import")
+            React.createElement("button", { type: "button", className: "secondary", onClick: importFile, disabled: isPreviewing || isImporting || selectedSourceIndexes.size === 0 }, isImporting ? "Import 中..." : `選択した ${selectedSourceIndexes.size} 件をImport`)
         ),
         preview ? React.createElement("div", { className: "kml-preview" },
             React.createElement("p", { className: "meta" }, `候補: ${candidateCount} 件 / 未対応 Placemark: ${preview.unsupportedPlacemarkCount ?? 0} 件`),
@@ -681,21 +780,28 @@ export function KmlImportPanel({ areas, currentUser, onImported, onMessage }) {
             ) : null,
             candidateCount === 0
                 ? React.createElement("p", { className: "meta" }, "import 可能な Point Placemark はありません。")
-                : React.createElement("div", { className: "related-list" }, preview.items.slice(0, 10).map((item, index) =>
-                    React.createElement("div", { key: `${item.name}-${index}`, className: "related-item" },
+                : React.createElement("div", { className: "related-list" }, preview.items.map((item) =>
+                    React.createElement("label", { key: item.sourceIndex, className: "related-item kml-candidate" },
+                        React.createElement("input", {
+                            type: "checkbox",
+                            checked: selectedSourceIndexes.has(item.sourceIndex),
+                            onChange: () => toggleCandidate(item.sourceIndex)
+                        }),
+                        React.createElement("span", null,
                         React.createElement("strong", null, item.name),
                         React.createElement("p", { className: "meta" }, `${formatCoordinate(item.latitude)}, ${formatCoordinate(item.longitude)} / ${formatAreaName(item.areaCode, areas)}`),
+                        item.nearbySpots?.length ? React.createElement("p", { className: "meta" }, `近くの既存Spot: ${item.nearbySpots.map((spot) => `${spot.name}（${Math.round(spot.distanceMeters)}m）`).join("、")}。追加する場合はチェックしてください。`) : null,
                         item.warnings?.length ? React.createElement("ul", { className: "warning-list" },
                             item.warnings.map((warning, warningIndex) => React.createElement("li", { key: warningIndex }, warning))
-                        ) : null
+                        ) : null)
                     )
                 )),
-            candidateCount > 10 ? React.createElement("p", { className: "meta" }, `ほか ${candidateCount - 10} 件`) : null
         ) : null
+        ) : React.createElement("p", { className: "meta" }, currentUser ? "KMLの取り込みには、先にVRChat表示名を登録してください。" : "KMLの取り込みには、ログインしてVRChat表示名を登録してください。")
     );
 }
 
-function SpotForm({ draft, areas, isSaving, onChange, onSubmit, onCancel, submitLabel = "Spot を登録" }) {
+function SpotForm({ draft, areas, isSaving, onChange, onUseMapCenter = null, onSubmit, onCancel, submitLabel = "Spot を登録" }) {
     const update = (key) => (event) => onChange({ ...draft, [key]: event.target.value });
     const selectedAreaCode = Number(draft.areaCode);
     const hasSelectedArea = areas.some((area) => area.areaCode === selectedAreaCode);
@@ -761,6 +867,7 @@ function SpotForm({ draft, areas, isSaving, onChange, onSubmit, onCancel, submit
             )
         ),
         React.createElement("div", { className: "actions" },
+            onUseMapCenter ? React.createElement("button", { type: "button", className: "secondary", onClick: onUseMapCenter }, "地図中心を座標に反映") : null,
             React.createElement("button", { type: "submit", disabled: isSaving }, isSaving ? "保存中..." : submitLabel),
             React.createElement("button", { type: "button", className: "secondary", onClick: onCancel }, "キャンセル")
         )
@@ -1595,6 +1702,11 @@ async function importKmlSpots(payload) {
     return unwrap(body);
 }
 
+async function exportKmlSpots(payload) {
+    const body = await postJson("/spots/export/kml", payload);
+    return unwrap(body);
+}
+
 async function updateSpot(payload) {
     const body = await postJson("/spots/update", payload);
     return unwrap(body).spot;
@@ -1699,6 +1811,16 @@ function readFileAsBase64(file) {
         reader.addEventListener("error", () => reject(new Error("ファイルを読み込めませんでした。")));
         reader.readAsDataURL(file);
     });
+}
+
+function downloadText(content, fileName, contentType) {
+    const blob = new Blob([content], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.click();
+    URL.revokeObjectURL(url);
 }
 
 function roundCoordinate(value) {

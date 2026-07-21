@@ -49,9 +49,16 @@ public sealed class ImportKmlSpotsUseCase(
         }
 
         var selectedItems = parseResult.Items.Where(item => selectedIndexes.Contains(item.SourceIndex)).ToArray();
-        var confirmationByIndex = request.Confirmations
-            .GroupBy(item => item.SourceIndex)
-            .ToDictionary(group => group.Key, group => group.Single().NearbySpotIds.ToHashSet());
+        var confirmationGroups = request.Confirmations.GroupBy(item => item.SourceIndex).ToArray();
+        if (confirmationGroups.Any(group => group.Count() != 1 || !selectedIndexes.Contains(group.Key)))
+        {
+            return Task.FromResult(KawaResult<ImportKmlSpots.Response>.Failure(
+                new KawaError(KawaErrorKind.Validation, "重複候補の確認情報が選択した KML 候補と一致しません。")));
+        }
+
+        var confirmationByIndex = confirmationGroups.ToDictionary(
+            group => group.Key,
+            group => group.Single().NearbySpotIds.ToHashSet());
         var existingSpots = spots.List();
         var reconfirmationItems = selectedItems
             .Where(item => KmlSpotDuplicateMatcher.FindNearDuplicates(item, existingSpots)

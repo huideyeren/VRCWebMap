@@ -25,6 +25,7 @@
             <h2>1. 地図を見る</h2>
             <p>地図上の marker をクリックすると、登録済み Spot の説明、関連する VRChat World、場所情報、Web リンク、コメントを確認できます。</p>
             <p>URL に <code>?spotId={id}</code>、<code>?spot={id}</code>、または <code>#spot={id}</code> が含まれている場合は、その Spot を中心に表示します。</p>
+            <p>右上の <code>+</code> と <code>−</code> で細かく拡大・縮小できます。レイヤー切替から標準地図（OpenStreetMap）と航空写真（国土地理院の全国最新写真）を選べます。</p>
         </section>
 
         <section>
@@ -58,9 +59,10 @@
         </section>
 
         <section>
-            <h2>7. KML/KMZ から Spot を import する</h2>
-            <p>管理者は、管理用画面から Google My Maps などで export した KML/KMZ を読み込み、Point Placemark を Spot として import できます。</p>
-            <p>まず「Preview」で候補を確認し、問題がなければ「Import」を押してください。1ファイルあたり最大 5,000 件の Point Placemark を読み込めます。KML の coordinates は WGS84 の <code>longitude,latitude[,altitude]</code> として読み込みます。LineString、Polygon、MultiGeometry、NetworkLink、外部参照は現在未対応です。</p>
+            <h2>7. KML/KMZ を取り込む・出力する</h2>
+            <p>地図画面の「KMLで移行・出力」から、Google My Maps や uMap と共通で使えるKMLを扱えます。KML/KMZの取り込みにはログインとVRChat表示名の登録が必要です。</p>
+            <p>取り込みでは、まず「Preview」で候補を確認します。既存Spotから50m以内の候補は重複の可能性があるため最初は選択されません。内容を確認して必要な候補だけチェックし、「Import」を押してください。実行直前に近くのSpotが増えていた場合は、保存せず再確認を求めます。</p>
+            <p>Spotを選んでKML出力すると、Google My Maps や uMap へ取り込めます。各Spotには出典、登録者名、元Spotへのリンクを含めます。OpenStreetMap本体へ自動投稿は行いません。1ファイルあたり最大 5,000 件の Point Placemark を読み込めます。KML の coordinates は WGS84 の <code>longitude,latitude[,altitude]</code> として読み込みます。LineString、Polygon、MultiGeometry、NetworkLink、外部参照は現在未対応です。</p>
         </section>
 
         <section>

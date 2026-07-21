@@ -20,7 +20,7 @@ public sealed class ExportKmlSpotsUseCase(ISpotRepository spots, IDiscordUserRep
         var mapper = new PublicResourceMapper(users.List(), null);
         XNamespace kml = "http://www.opengis.net/kml/2.2";
         var document = new XDocument(new XDeclaration("1.0", "UTF-8", null), new XElement(kml + "kml", new XElement(kml + "Document",
-            selected.Select(spot => new XElement(kml + "Placemark", new XElement(kml + "name", spot.Name), new XElement(kml + "description", $"{spot.Description}\n\n出典: VRC Web Map\n登録者: {mapper.ResolveDisplayName(spot.RegisteredByUserId)}\n元Spot: {baseUri.GetLeftPart(UriPartial.Authority).TrimEnd('/')}/?spotId={spot.Id}"), new XElement(kml + "ExtendedData", new XElement(kml + "Data", new XAttribute("name", "vrcwebmap:spotId"), new XElement(kml + "value", spot.Id))), new XElement(kml + "Point", new XElement(kml + "coordinates", $"{spot.Longitude},{spot.Latitude},0")))))));
+            selected.Select(spot => new XElement(kml + "Placemark", new XElement(kml + "name", spot.Name), new XElement(kml + "description", $"{spot.Description}\n\n出典: VRC Web Map\n登録者: {mapper.ResolveDisplayName(spot.RegisteredByUserId)}\n元Spot: {options.PublicBaseUrl.TrimEnd('/')}/?spotId={spot.Id}"), new XElement(kml + "ExtendedData", new XElement(kml + "Data", new XAttribute("name", "vrcwebmap:spotId"), new XElement(kml + "value", spot.Id))), new XElement(kml + "Point", new XElement(kml + "coordinates", $"{spot.Longitude},{spot.Latitude},0")))))));
         return Task.FromResult(KawaResult<ExportKmlSpots.Response>.Success(new("VrcWebMap-spots.kml", document.ToString(), missing)));
     }
 }
