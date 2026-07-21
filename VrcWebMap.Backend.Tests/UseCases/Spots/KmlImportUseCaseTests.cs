@@ -113,29 +113,92 @@ public sealed class KmlImportUseCaseTests
     }
 
     [Fact]
-    public async Task Import_Admin_CreatesSpots()
+    public async Task Import_Writer_CreatesOnlySelectedSpots()
     {
         var repository = new FakeSpotRepository();
         var useCase = new ImportKmlSpotsUseCase(
             repository,
-            FakeDiscordUserRepository.WithVRChatDisplayName("admin-user", "Admin"),
-            Writer("admin-user", isAdmin: true));
+            FakeDiscordUserRepository.WithVRChatDisplayName("general-user", "General"),
+            Writer("general-user", isAdmin: false));
 
         var result = await useCase.ExecuteAsync(new ImportKmlSpots.Request(
             "spots.kml",
             ToBase64(SampleKml()),
-            AreaCodes.Japan.Tokyo));
+            AreaCodes.Japan.Tokyo,
+            [0],
+            []));
 
         Assert.True(result.IsSuccess);
         var spot = Assert.Single(result.Value!.Spots);
-        Assert.Equal("Admin", spot.RegisteredByDisplayName);
+        Assert.Equal("General", spot.RegisteredByDisplayName);
         Assert.True(spot.CanEdit);
         Assert.Equal("井の頭公園駅", spot.Name);
         Assert.Equal(35.697484, spot.Latitude);
         Assert.Equal(139.582739, spot.Longitude);
         Assert.Equal(AreaCodes.Japan.Tokyo, spot.AreaCode);
         Assert.True(repository.Exists(spot.Id));
-        Assert.Equal("admin-user", Assert.Single(repository.SavedSpots).RegisteredByUserId);
+        Assert.Equal("general-user", Assert.Single(repository.SavedSpots).RegisteredByUserId);
+    }
+
+    [Fact]
+    public async Task Import_UnconfirmedNearbySpot_ReturnsReconfirmationWithoutSaving()
+    {
+        var existing = new Spot(
+            Guid.NewGuid(),
+            "existing-user",
+            "既存 Spot",
+            35.697484,
+            139.582739,
+            AreaCodes.Japan.Tokyo,
+            "既存 Spot の説明");
+        var repository = new FakeSpotRepository(existing);
+        var useCase = new ImportKmlSpotsUseCase(
+            repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("general-user", "General"),
+            Writer("general-user", isAdmin: false));
+
+        var result = await useCase.ExecuteAsync(new ImportKmlSpots.Request(
+            "spots.kml",
+            ToBase64(SampleKml()),
+            AreaCodes.Japan.Tokyo,
+            [0],
+            []));
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value!.Spots);
+        var item = Assert.Single(result.Value.ReconfirmationRequiredItems);
+        Assert.Equal(0, item.SourceIndex);
+        Assert.Equal(existing.Id, Assert.Single(item.NearbySpots).Id);
+        Assert.Empty(repository.SavedSpots);
+    }
+
+    [Fact]
+    public async Task Import_ConfirmedNearbySpot_CreatesSpot()
+    {
+        var existing = new Spot(
+            Guid.NewGuid(),
+            "existing-user",
+            "既存 Spot",
+            35.697484,
+            139.582739,
+            AreaCodes.Japan.Tokyo,
+            "既存 Spot の説明");
+        var repository = new FakeSpotRepository(existing);
+        var useCase = new ImportKmlSpotsUseCase(
+            repository,
+            FakeDiscordUserRepository.WithVRChatDisplayName("general-user", "General"),
+            Writer("general-user", isAdmin: false));
+
+        var result = await useCase.ExecuteAsync(new ImportKmlSpots.Request(
+            "spots.kml",
+            ToBase64(SampleKml()),
+            AreaCodes.Japan.Tokyo,
+            [0],
+            [new ImportKmlSpots.NearDuplicateConfirmation(0, [existing.Id])]));
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value!.Spots);
+        Assert.Empty(result.Value.ReconfirmationRequiredItems);
     }
 
     [Fact]

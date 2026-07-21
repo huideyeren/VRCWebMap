@@ -13,7 +13,7 @@ namespace VrcWebMap.Backend.UseCases.Spots;
     Version = "v1",
     Tags = new[] { "Spot Management" })]
 [KawaErrorResponse(KawaErrorKind.Validation, Description = "KML/KMZ の入力値が不正です。")]
-[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "管理者のみ KML/KMZ import を実行できます。")]
+[KawaErrorResponse(KawaErrorKind.Forbidden, Description = "VRChat表示名を登録したログインユーザーのみ KML/KMZ import を実行できます。")]
 /// <summary>
 /// KML/KMZ から Spot を import するユースケースです。
 /// </summary>
@@ -33,12 +33,6 @@ public sealed class ImportKmlSpotsUseCase(
             return Task.FromResult(KawaResult<ImportKmlSpots.Response>.Failure(actorError));
         }
 
-        if (!actor!.IsAdmin)
-        {
-            return Task.FromResult(KawaResult<ImportKmlSpots.Response>.Failure(
-                new KawaError(KawaErrorKind.Forbidden, "KML/KMZ import は管理者のみ実行できます。")));
-        }
-
         var parseResult = KmlSpotImportParser.Parse(request.FileName, request.ContentBase64, request.DefaultAreaCode);
         if (parseResult.ErrorMessage is not null)
         {
@@ -46,8 +40,36 @@ public sealed class ImportKmlSpotsUseCase(
                 new KawaError(KawaErrorKind.Validation, parseResult.ErrorMessage)));
         }
 
+        var selectedIndexes = request.SelectedSourceIndexes.Distinct().ToHashSet();
+        if (selectedIndexes.Count != request.SelectedSourceIndexes.Length ||
+            selectedIndexes.Any(index => parseResult.Items.All(item => item.SourceIndex != index)))
+        {
+            return Task.FromResult(KawaResult<ImportKmlSpots.Response>.Failure(
+                new KawaError(KawaErrorKind.Validation, "選択した KML 候補が入力ファイルと一致しません。")));
+        }
+
+        var selectedItems = parseResult.Items.Where(item => selectedIndexes.Contains(item.SourceIndex)).ToArray();
+        var confirmationByIndex = request.Confirmations
+            .GroupBy(item => item.SourceIndex)
+            .ToDictionary(group => group.Key, group => group.Single().NearbySpotIds.ToHashSet());
+        var existingSpots = spots.List();
+        var reconfirmationItems = selectedItems
+            .Where(item => KmlSpotDuplicateMatcher.FindNearDuplicates(item, existingSpots)
+                .Any(nearby => !confirmationByIndex.GetValueOrDefault(item.SourceIndex, []).Contains(nearby.Id)))
+            .Select(item =>
+            {
+                var nearbySpots = KmlSpotDuplicateMatcher.FindNearDuplicates(item, existingSpots);
+                return item with { NearbySpots = nearbySpots, IsSelectedByDefault = false };
+            })
+            .ToArray();
+        if (reconfirmationItems.Length > 0)
+        {
+            return Task.FromResult(KawaResult<ImportKmlSpots.Response>.Success(
+                new([], parseResult.Warnings, parseResult.UnsupportedPlacemarkCount, reconfirmationItems)));
+        }
+
         var importedSpots = new List<Spot>();
-        foreach (var item in parseResult.Items)
+        foreach (var item in selectedItems)
         {
             var spot = new Spot(
                 Guid.NewGuid(),
@@ -65,7 +87,8 @@ public sealed class ImportKmlSpotsUseCase(
         var response = new ImportKmlSpots.Response(
             importedSpots.Select(spot => mapper.ToSpot(spot)).ToArray(),
             parseResult.Warnings,
-            parseResult.UnsupportedPlacemarkCount);
+            parseResult.UnsupportedPlacemarkCount,
+            []);
         return Task.FromResult(KawaResult<ImportKmlSpots.Response>.Success(response));
     }
 }
