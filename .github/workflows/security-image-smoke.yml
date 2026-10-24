@@ -1,0 +1,79 @@
+name: Security image smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/security-image-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  amd64-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      # エミュレーションではなくamd64実機で、公開済みBetaと同一のイメージを確認する。
+      - name: Start published security image
+        run: |
+          docker run --detach --name security-smoke \
+            -p 127.0.0.1:18080:8080 \
+            -e ASPNETCORE_ENVIRONMENT=Production \
+            -e Database__Provider=InMemory \
+            huideyeren/vrcwebmap-backend@sha256:dd63f29fd88518aad30a55396bd4ad5125ab9f5de757cb791c269fde722fdb8f
+      - name: Verify production endpoints and OpenAPI
+        shell: python
+        run: |
+          import json, re, time, urllib.error, urllib.request
+          def request(path, data=None):
+              payload = None if data is None else json.dumps(data).encode()
+              req = urllib.request.Request('http://127.0.0.1:18080' + path, data=payload,
+                  headers={'Content-Type': 'application/json'} if payload is not None else {})
+              try:
+                  with urllib.request.urlopen(req, timeout=15) as response:
+                      return response.status, response.read(), response.headers
+              except urllib.error.HTTPError as error:
+                  return error.code, error.read(), error.headers
+          for attempt in range(60):
+              try:
+                  status, body, headers = request('/')
+                  break
+              except (urllib.error.URLError, TimeoutError, ConnectionError):
+                  time.sleep(1)
+          else:
+              raise RuntimeError('Application did not start')
+          assert status == 200
+          assert headers['X-Content-Type-Options'] == 'nosniff'
+          assert "default-src 'self'" in headers['Content-Security-Policy']
+          assets = re.findall(r'(?:src|href)="(/assets/[^\"]+)"', body.decode())
+          assert assets
+          for path in assets:
+              assert request(path)[0] == 200, path
+          for path in ['/areas/list', '/spots/list', '/portal/world-data']:
+              status, body, _ = request(path, {})
+              assert status == 200, (path, status, body)
+              json.loads(body)
+          status, body, _ = request('/openapi/v1.json')
+          assert status == 200
+          document = json.loads(body)
+          assert '/spots/list' in document['paths']
+          def check_refs(value):
+              if isinstance(value, dict):
+                  ref = value.get('$ref', '')
+                  if ref.startswith('#/'):
+                      target = document
+                      for part in ref[2:].split('/'):
+                          target = target[part.replace('~1', '/').replace('~0', '~')]
+                  for child in value.values():
+                      check_refs(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      check_refs(child)
+          check_refs(document)
+          assert request('/auth/me')[0] == 401
+          for path in ['/auth/dev/login/admin', '/auth/dev/login/user', '/openapi/swagger/index.html', '/openapi/redoc/index.html']:
+              assert request(path)[0] == 404, path
+          print('amd64 production smoke passed:', len(assets), 'assets,', len(document['paths']), 'OpenAPI paths')
+      - name: Container logs
+        if: always()
+        run: docker logs security-smoke
